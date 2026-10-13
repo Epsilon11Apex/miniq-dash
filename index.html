@@ -1,0 +1,1929 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#05070c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>MiniQ Dash — Télémétrie Teverun Fighter Mini Q</title>
+<style>
+/* ============================================================
+   MINIQ DASH — feuille de style (aucun CDN, 100% hors ligne)
+   ============================================================ */
+:root{
+  --bg0:#05070c; --bg1:#0a0f18; --card:rgba(148,163,184,.055);
+  --card2:rgba(148,163,184,.09); --line:rgba(148,163,184,.14);
+  --txt:#e8eef8; --mut:#8b98ad; --dim:#5b6678;
+  --acc:#58a6ff; --acc2:#7ce7c4; --ok:#34d399; --warn:#fbbf24; --bad:#fb6a6a;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+  --r:20px;
+}
+[data-theme="light"]{
+  --bg0:#eef1f6; --bg1:#ffffff; --card:rgba(15,23,42,.045);
+  --card2:rgba(15,23,42,.07); --line:rgba(15,23,42,.12);
+  --txt:#0e1524; --mut:#5a6a82; --dim:#93a1b5;
+  --acc:#2563eb; --acc2:#0d9488; --ok:#059669; --warn:#b45309; --bad:#dc2626;
+  --shadow:0 8px 24px rgba(15,23,42,.12);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg0);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:15px;line-height:1.45;overscroll-behavior-y:none;
+  -webkit-font-smoothing:antialiased;touch-action:manipulation;
+}
+body::before{ /* halo d'ambiance */
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(120% 60% at 50% -10%,rgba(88,166,255,.10),transparent 60%),
+             radial-gradient(80% 40% at 90% 110%,rgba(52,211,153,.06),transparent 60%);
+}
+.num, .val, code, .mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+h1,h2,h3{margin:0;font-weight:700;letter-spacing:.01em}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+button:active{transform:scale(.97)}
+input,select{font:inherit;color:var(--txt)}
+svg.ic{width:22px;height:22px;flex:none}
+svg.ic.sm{width:16px;height:16px}
+svg.ic.lg{width:28px;height:28px}
+
+/* ---------- barre supérieure ---------- */
+#topbar{
+  position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:8px;
+  padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;
+  background:color-mix(in srgb,var(--bg0) 82%,transparent);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.pill{
+  display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;
+  background:var(--card);border:1px solid var(--line);font-size:13px;font-weight:600;
+  white-space:nowrap;min-width:0;
+}
+.pill .dot{width:9px;height:9px;border-radius:50%;background:var(--bad);flex:none;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--bad) 25%,transparent)}
+.pill.on .dot{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent),0 0 12px var(--ok)}
+.pill.busy .dot{background:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 25%,transparent)}
+.pill.demo .dot{background:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 25%,transparent),0 0 12px var(--acc)}
+.pill span.lbl{overflow:hidden;text-overflow:ellipsis}
+.pill .rssi{color:var(--mut);font-weight:500;font-size:12px}
+#topActions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:10px 15px;border-radius:14px;font-weight:700;font-size:14px;
+  background:linear-gradient(180deg,#3b82f6,#2563eb);color:#fff;border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 4px 14px rgba(37,99,235,.35);white-space:nowrap;
+}
+.btn.ghost{background:var(--card);color:var(--txt);border:1px solid var(--line);box-shadow:none}
+.btn.danger{background:linear-gradient(180deg,#ef4444,#dc2626);box-shadow:0 4px 14px rgba(220,38,38,.3)}
+.btn.ok{background:linear-gradient(180deg,#10b981,#059669);box-shadow:0 4px 14px rgba(16,185,129,.3)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btn.big{width:100%;padding:15px;font-size:16px;border-radius:16px}
+#recBadge{display:none;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;
+  background:color-mix(in srgb,var(--bad) 14%,transparent);border:1px solid color-mix(in srgb,var(--bad) 40%,transparent);
+  color:var(--bad);font-size:12px;font-weight:700}
+#recBadge.show{display:flex}
+#recBadge .rdot{width:8px;height:8px;border-radius:50%;background:var(--bad);animation:blink 1.1s infinite}
+@keyframes blink{50%{opacity:.15}}
+
+/* ---------- bandeau alerte ---------- */
+#alertBar{
+  display:none;margin:10px 14px 0;padding:11px 14px;border-radius:14px;z-index:5;position:relative;
+  background:color-mix(in srgb,var(--bad) 13%,var(--bg1));border:1px solid color-mix(in srgb,var(--bad) 45%,transparent);
+  color:var(--bad);font-weight:700;font-size:13.5px;align-items:center;gap:9px;
+  animation:pulseA 1.4s ease-in-out infinite;
+}
+#alertBar.show{display:flex}
+@keyframes pulseA{50%{border-color:var(--bad)}}
+
+/* ---------- structure ---------- */
+main{position:relative;z-index:1;padding:12px 14px calc(env(safe-area-inset-bottom) + 92px);max-width:560px;margin:0 auto}
+.page{display:none;animation:fade .25s ease}
+.page.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px;margin-bottom:12px;position:relative;overflow:hidden;
+}
+.card.tight{padding:12px 14px}
+.card h3{font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--mut);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.rowline{display:flex;align-items:center;justify-content:space-between;gap:10px}
+
+/* grilles de tuiles */
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:12px}
+.tile{
+  background:var(--card);border:1px solid var(--line);border-radius:16px;padding:11px 10px 9px;
+  display:flex;flex-direction:column;gap:3px;min-width:0;transition:opacity .4s;
+}
+.tile .t-lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--mut);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .t-val{font-size:19px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
+.tile .t-val small{font-size:11px;font-weight:600;color:var(--mut);margin-left:2px}
+.tile .t-sub{font-size:11px;color:var(--mut)}
+.tile.stale{opacity:.38}
+.tile.wide{grid-column:span 2}
+.tile .t-val.ok{color:var(--ok)}.tile .t-val.bad{color:var(--bad)}
+.tile .t-val.warn{color:var(--warn)}.tile .t-val.acc{color:var(--acc)}
+
+/* ---------- jauge vitesse ---------- */
+.gauge-wrap{position:relative;padding:18px 16px 8px;display:flex;justify-content:center}
+.gauge{width:min(78vw,300px);height:auto;display:block;overflow:visible}
+.gauge .g-bg{fill:none;stroke:var(--card2);stroke-width:13;stroke-linecap:round}
+.gauge .g-arc{fill:none;stroke:url(#ggrad);stroke-width:13;stroke-linecap:round;transition:stroke-dasharray .12s linear}
+.gauge.regen .g-arc{stroke:url(#ggradR)}
+.gcenter{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:52px;pointer-events:none}
+#lvSpeed{font-size:clamp(58px,19vw,84px);font-weight:800;letter-spacing:-.045em;line-height:1;
+  background:linear-gradient(180deg,var(--txt),color-mix(in srgb,var(--txt) 55%,transparent));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+#lvUnit{color:var(--mut);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.22em;margin-top:2px}
+#lvRegen{margin-top:7px;font-size:11px;font-weight:800;letter-spacing:.18em;color:var(--ok);
+  border:1px solid color-mix(in srgb,var(--ok) 45%,transparent);border-radius:999px;padding:3px 10px;
+  background:color-mix(in srgb,var(--ok) 12%,transparent);opacity:0;transition:opacity .25s}
+#lvRegen.show{opacity:1}
+.gfoot{display:flex;justify-content:space-between;color:var(--dim);font-size:11px;font-weight:700;padding:0 22px;margin-top:-16px}
+
+/* ---------- liste « Tout » ---------- */
+.search{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line);
+  border-radius:14px;padding:10px 13px;margin-bottom:12px}
+.search input{flex:1;background:none;border:none;outline:none;font-size:15px;color:var(--txt)}
+.cat-h{font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);font-weight:800;margin:18px 2px 8px}
+.vrow{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:13px;border:1px solid transparent;transition:opacity .4s}
+.vrow:nth-child(odd){background:var(--card)}
+.vrow.stale{opacity:.38}
+.vrow .v-lab{flex:1;min-width:0;font-size:13.5px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vrow .v-val{font-size:14.5px;font-weight:800;white-space:nowrap}
+.vrow .v-unit{font-size:11px;color:var(--mut);min-width:26px;text-align:left}
+.vrow .qbtn{width:26px;height:26px;border-radius:50%;border:1px solid var(--line);color:var(--mut);
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:none}
+.vrow .qbtn.open{background:var(--acc);color:#fff;border-color:var(--acc)}
+.vhelp{display:none;padding:4px 46px 10px 12px;font-size:12.5px;color:var(--mut)}
+.vhelp.open{display:block}
+
+/* ---------- barres de température ---------- */
+.tbar-row{display:flex;align-items:center;gap:10px;padding:8px 0}
+.tbar-row .n{width:86px;font-size:12.5px;color:var(--mut);font-weight:600;flex:none}
+.tbar{flex:1;height:10px;border-radius:6px;background:var(--card2);position:relative;overflow:hidden}
+.tbar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;width:0%;transition:width .5s ease,background .5s}
+.tbar-row .v{width:64px;text-align:right;font-weight:800;font-size:13.5px;flex:none}
+.tbar-row.stale{opacity:.38}
+
+/* ---------- canvases ---------- */
+canvas.chart{width:100%;height:150px;display:block}
+canvas.chart.tall{height:180px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
+.legend span{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--mut);font-weight:600}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* ---------- chips ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{padding:6px 11px;border-radius:999px;font-size:12px;font-weight:700;background:var(--card);
+  border:1px solid var(--line);color:var(--mut)}
+.chip.on{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.chip.bad{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,transparent)}
+.chip.warn{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
+
+/* ---------- défauts ---------- */
+.frow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:13px}
+.frow:nth-child(odd){background:var(--card)}
+.frow .fid{font-weight:800;font-size:13px;width:74px;flex:none}
+.frow .sev{flex:1;display:flex;gap:3px}
+.frow .sev i{flex:1;height:7px;border-radius:4px;background:var(--card2)}
+.frow .sev i.l1{background:var(--ok)}.frow .sev i.l2{background:var(--warn)}.frow .sev i.l3{background:var(--bad)}
+.frow .fst{font-size:11.5px;font-weight:800;width:64px;text-align:right;flex:none;color:var(--dim)}
+.frow.act .fst{color:var(--bad)}
+
+/* ---------- brut ---------- */
+.rawtbl{display:flex;flex-direction:column;gap:8px}
+.rrow{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--card)}
+.rrow .rh{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.rrow .rid{font-weight:800;font-size:13px;color:var(--acc)}
+.rrow .rname{font-size:11.5px;color:var(--mut);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rrow .rcount{font-size:11px;color:var(--dim);font-weight:700}
+.rhex{display:flex;flex-wrap:wrap;gap:3px;font-size:12.5px}
+.rhex b{font-weight:600;padding:1px 3.5px;border-radius:5px;background:var(--card2);transition:background .3s,color .3s}
+.rhex b.idx{color:var(--dim);font-weight:500}
+.rhex b.chg{background:color-mix(in srgb,var(--ok) 35%,transparent);color:var(--ok)}
+.rhex b.crc{color:var(--dim)}
+.diag{font-size:12px;color:var(--mut)}
+.diag .svc{padding:7px 10px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;background:var(--card)}
+.diag .svc b{color:var(--txt)}
+.logbox{margin-top:10px;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:9px 11px;
+  font-size:11px;color:var(--mut);background:var(--bg1);white-space:pre-wrap;word-break:break-all}
+
+/* ---------- enregistreur ---------- */
+.sess{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--card);margin-bottom:8px}
+.sess .si{flex:1;min-width:0}
+.sess .si b{display:block;font-size:13.5px}
+.sess .si span{font-size:11.5px;color:var(--mut)}
+.sess .iconbtn{width:38px;height:38px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--mut);flex:none}
+.sess .iconbtn:hover{color:var(--txt)}
+
+/* ---------- réglages ---------- */
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 2px;border-bottom:1px solid var(--line)}
+.setrow:last-child{border-bottom:none}
+.setrow .sl{flex:1}
+.setrow .sl b{display:block;font-size:14px}
+.setrow .sl span{font-size:12px;color:var(--mut)}
+.switch{width:50px;height:30px;border-radius:999px;background:var(--card2);position:relative;transition:background .25s;flex:none;border:1px solid var(--line)}
+.switch i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .25s cubic-bezier(.2,.8,.3,1.2);box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.switch.on{background:var(--ok)}
+.switch.on i{transform:translateX(20px)}
+select.sel,input.inp{background:var(--card2);border:1px solid var(--line);border-radius:11px;padding:8px 11px;font-size:14px;outline:none;-webkit-appearance:none;appearance:none}
+input[type=range]{-webkit-appearance:none;width:130px;height:6px;border-radius:3px;background:var(--card2);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--acc);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.rangewrap{display:flex;align-items:center;gap:9px}
+.rangewrap output{font-weight:800;font-size:13px;min-width:56px;text-align:right}
+
+/* ---------- navigation bas ---------- */
+#tabbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:60;
+  padding:8px 10px calc(env(safe-area-inset-bottom) + 8px);
+  background:color-mix(in srgb,var(--bg0) 84%,transparent);
+  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+  border-top:1px solid var(--line);
+}
+#tabscroll{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;scroll-behavior:smooth}
+#tabscroll::-webkit-scrollbar{display:none}
+.tab{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 13px 6px;border-radius:14px;color:var(--dim);min-width:62px;position:relative}
+.tab span{font-size:10px;font-weight:700;letter-spacing:.02em}
+.tab.active{color:var(--acc)}
+.tab.active::before{content:"";position:absolute;top:-9px;left:24%;right:24%;height:3px;border-radius:2px;background:var(--acc);box-shadow:0 0 10px var(--acc)}
+.tab .bdg{position:absolute;top:4px;right:8px;min-width:15px;height:15px;border-radius:8px;background:var(--bad);color:#fff;font-size:9.5px;font-weight:800;display:none;align-items:center;justify-content:center;padding:0 4px}
+.tab .bdg.show{display:flex}
+
+/* ---------- toast ---------- */
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 96px);transform:translateX(-50%) translateY(20px);
+  z-index:100;background:var(--bg1);border:1px solid var(--line);border-radius:14px;padding:11px 17px;
+  font-size:13.5px;font-weight:600;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:all .3s;max-width:86vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{border-color:color-mix(in srgb,var(--bad) 50%,transparent);color:var(--bad)}
+
+.note{font-size:12.5px;color:var(--mut);background:var(--card);border:1px dashed var(--line);border-radius:13px;padding:11px 13px;margin-bottom:12px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:9px 2px;border-bottom:1px solid var(--line);font-size:14px}
+.kv:last-child{border-bottom:none}
+.kv .k{color:var(--mut)}
+.kv .v{font-weight:700;text-align:right;word-break:break-all}
+.hidden{display:none!important}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<header id="topbar">
+  <div class="pill" id="connPill"><span class="dot"></span><span class="lbl" id="connText">Déconnecté</span><span class="rssi" id="rssi"></span></div>
+  <div id="recBadge"><span class="rdot"></span>REC <span id="recTime"></span></div>
+  <div id="topActions">
+    <button class="btn ghost" id="btnReconnect" style="display:none;padding:10px 12px">Reconnecter</button>
+    <button class="btn ghost" id="btnDemo">Démo</button>
+    <button class="btn" id="btnConnect">Connecter</button>
+  </div>
+</header>
+
+<div id="alertBar" role="alert"></div>
+
+<main>
+  <!-- ============ PAGE LIVE ============ -->
+  <section class="page" id="p-live">
+    <div class="card gauge-wrap">
+      <svg class="gauge" id="gaugeSvg" viewBox="0 0 220 150">
+        <defs>
+          <linearGradient id="ggrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#58a6ff"/><stop offset="100%" stop-color="#7ce7c4"/>
+          </linearGradient>
+          <linearGradient id="ggradR" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#a7f3d0"/>
+          </linearGradient>
+        </defs>
+        <circle class="g-bg" cx="110" cy="118" r="92" pathLength="100" transform="rotate(135 110 118)" stroke-dasharray="75 100"/>
+        <circle class="g-arc" id="gaugeArc" cx="110" cy="118" r="92" pathLength="100" transform="rotate(135 110 118)" stroke-dasharray="0 100"/>
+      </svg>
+      <div class="gcenter">
+        <div id="lvSpeed" class="num">—</div>
+        <div id="lvUnit">km/h</div>
+        <div id="lvRegen">RÉGÉNÉRATION</div>
+      </div>
+    </div>
+    <div class="gfoot"><span>0</span><span id="gaugeMax">60</span></div>
+    <div class="grid4">
+      <div class="tile"><span class="t-lab">Batterie</span><span class="t-val num" id="lvSoc">—</span></div>
+      <div class="tile"><span class="t-lab">Tension</span><span class="t-val num" id="lvVolt">—</span></div>
+      <div class="tile"><span class="t-lab">Courant</span><span class="t-val num" id="lvAmp">—</span></div>
+      <div class="tile"><span class="t-lab">Puissance</span><span class="t-val num" id="lvPow">—</span></div>
+    </div>
+    <div class="grid3">
+      <div class="tile"><span class="t-lab">Rapport</span><span class="t-val num" id="lvGear">—</span></div>
+      <div class="tile"><span class="t-lab">Régén (EABS)</span><span class="t-val num" id="lvEabs">—</span></div>
+      <div class="tile"><span class="t-lab">Mode</span><span class="t-val num" id="lvMode">—</span></div>
+      <div class="tile"><span class="t-lab">Temp. batt.</span><span class="t-val num" id="lvTBatt">—</span></div>
+      <div class="tile"><span class="t-lab">Moteur AV</span><span class="t-val num" id="lvTMotF">—</span></div>
+      <div class="tile"><span class="t-lab">Moteur AR</span><span class="t-val num" id="lvTMotR">—</span></div>
+    </div>
+    <div class="note">Astuce : la page <b>Brut</b> affiche chaque trame reçue en direct — utile pour repérer les champs non documentés de la Mini&nbsp;Q.</div>
+  </section>
+
+  <!-- ============ PAGE TOUT ============ -->
+  <section class="page" id="p-tout">
+    <div class="search"><input id="toutSearch" type="search" placeholder="Rechercher une valeur…" autocomplete="off"></div>
+    <div id="toutList"></div>
+  </section>
+
+  <!-- ============ PAGE ÉNERGIE ============ -->
+  <section class="page" id="p-energie">
+    <div class="card tight">
+      <div class="rowline">
+        <div>
+          <div class="t-lab" style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--mut);font-weight:700">Courant de régénération</div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px">
+            <span class="num" id="enAmp" style="font-size:40px;font-weight:800;letter-spacing:-.03em">—</span>
+            <span id="enState" class="chip">—</span>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="t-lab" style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--mut);font-weight:700">Puissance inst.</div>
+          <div class="num" id="enPow" style="font-size:26px;font-weight:800">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Courant pack — 60 s</h3>
+      <canvas class="chart" id="chEnergy"></canvas>
+      <div class="legend"><span><i style="background:var(--bad)"></i>Décharge</span><span><i style="background:var(--ok)"></i>Régénération</span></div>
+    </div>
+    <div class="grid2">
+      <div class="tile"><span class="t-lab">Régén session</span><span class="t-val num ok" id="enRegenWh">0.0</span><span class="t-sub">Wh récupérés (courant négatif × tension)</span></div>
+      <div class="tile"><span class="t-lab">Cumul trottinette</span><span class="t-val num" id="enCumul">—</span><span class="t-sub">Trame 55 73 · unité non vérifiée</span></div>
+      <div class="tile"><span class="t-lab">Niveau régén (EABS)</span><span class="t-val num" id="enEabs">—</span><span class="t-sub">Nibbles haut / bas (trame 55 71)</span></div>
+      <div class="tile"><span class="t-lab">Conso estimée</span><span class="t-val num" id="enWhKm">—</span><span class="t-sub">Wh/km sur la session</span></div>
+    </div>
+  </section>
+
+  <!-- ============ PAGE TEMPÉRATURES ============ -->
+  <section class="page" id="p-temp">
+    <div class="card">
+      <h3>Batterie — capteurs</h3>
+      <div id="tempBatt"></div>
+      <div class="chips" style="margin-top:10px">
+        <span class="chip" id="tpCellMax">Cellule max : —</span>
+        <span class="chip" id="tpCellMin">Cellule min : —</span>
+        <span class="chip" id="tpProt">Protection : —</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Moteurs</h3>
+      <div id="tempMot"></div>
+    </div>
+    <div class="card">
+      <h3>Historique — session</h3>
+      <canvas class="chart tall" id="chTemp"></canvas>
+      <div class="legend">
+        <span><i style="background:#58a6ff"></i>Batt. max</span>
+        <span><i style="background:#f59e0b"></i>Moteur AV</span>
+        <span><i style="background:#fb7185"></i>Moteur AR</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PAGE BATTERIE ============ -->
+  <section class="page" id="p-batt">
+    <div class="grid4" id="battTiles"></div>
+    <div class="card">
+      <h3>États BMS</h3>
+      <div class="kv"><span class="k">Relais (brut)</span><span class="v mono" id="bRelay">—</span></div>
+      <div class="kv"><span class="k">MOS charge</span><span class="v" id="bMosC">—</span></div>
+      <div class="kv"><span class="k">MOS décharge</span><span class="v" id="bMosD">—</span></div>
+      <div class="kv"><span class="k">Équilibrage actif</span><span class="v" id="bBal">—</span></div>
+      <div class="kv"><span class="k">État de charge (55 54)</span><span class="v" id="bCharge">—</span></div>
+      <div class="kv"><span class="k">Défauts actifs</span><span class="v" id="bFaults">—</span></div>
+    </div>
+  </section>
+
+  <!-- ============ PAGE DÉFAUTS ============ -->
+  <section class="page" id="p-defauts">
+    <div class="card tight rowline">
+      <div><b id="dfCount">0 défaut actif</b><div style="font-size:12px;color:var(--mut)">Trame 55 54 · sévérité &gt; 0 = actif</div></div>
+      <span class="chip on" id="dfChip">OK</span>
+    </div>
+    <div class="card"><h3>Défauts par type</h3><div id="faultList"></div></div>
+    <div class="card">
+      <h3>Contrôleurs (55 72)</h3>
+      <div class="kv"><span class="k">ECU avant (brut)</span><span class="v mono" id="dEcuF">—</span></div>
+      <div class="kv"><span class="k">ECU arrière (brut)</span><span class="v mono" id="dEcuR">—</span></div>
+      <div class="chips" style="margin-top:10px">
+        <span class="chip" id="dLight">Phare : —</span>
+        <span class="chip" id="dTurnL">Clign. G : —</span>
+        <span class="chip" id="dTurnR">Clign. D : —</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PAGE TRAJET ============ -->
+  <section class="page" id="p-trajet">
+    <div class="grid2" id="tripTiles"></div>
+    <div class="card"><h3>Session (app)</h3><div class="grid2" id="sessTiles" style="margin:0"></div></div>
+  </section>
+
+  <!-- ============ PAGE ENREGISTREMENT ============ -->
+  <section class="page" id="p-rec">
+    <div class="card">
+      <h3>Enregistrement</h3>
+      <button class="btn ok big" id="recStart"><span id="recStartLbl">Démarrer l'enregistrement</span></button>
+      <button class="btn danger big hidden" id="recStop">Arrêter et sauvegarder</button>
+      <div class="note" style="margin:10px 0 0" id="recStatus">Toutes les valeurs sont échantillonnées dans IndexedDB (ou en mémoire si indisponible).</div>
+    </div>
+    <div class="card">
+      <h3>Sessions</h3>
+      <div id="sessList"></div>
+      <button class="btn ghost big hidden" id="recWipe">Tout supprimer</button>
+    </div>
+  </section>
+
+  <!-- ============ PAGE BRUT ============ -->
+  <section class="page" id="p-brut">
+    <div class="card tight">
+      <div class="chips">
+        <span class="chip" id="rawRate">0 trame/s</span>
+        <span class="chip" id="rawCount">0 trame</span>
+        <span class="chip" id="rawCrcErr">0 CRC faux</span>
+      </div>
+      <div class="rowline" style="margin-top:10px">
+        <button class="btn ghost" id="rawPause" style="flex:1">Pause</button>
+        <button class="btn ghost" id="rawClear" style="flex:1">Effacer</button>
+        <button class="btn ghost" id="rawExport" style="flex:1">Exporter le log</button>
+      </div>
+    </div>
+    <div class="card"><h3>Services BLE découverts</h3><div class="diag" id="bleDiag">Aucune connexion pour le moment.</div></div>
+    <div class="card"><h3>Trames vues</h3><div class="rawtbl" id="rawTable"><div class="note">En attente de trames…</div></div></div>
+    <div class="card"><h3>Journal brut (dernières trames)</h3><div class="logbox mono" id="rawLog"></div></div>
+  </section>
+
+  <!-- ============ PAGE INFOS ============ -->
+  <section class="page" id="p-infos">
+    <div class="card"><h3>Identité</h3><div id="infoList"></div></div>
+    <div class="card"><h3>Versions</h3><div id="verList"></div></div>
+  </section>
+
+  <!-- ============ PAGE RÉGLAGES ============ -->
+  <section class="page" id="p-regl">
+    <div class="card"><h3>Affichage</h3><div id="setList1"></div></div>
+    <div class="card"><h3>Alertes</h3><div id="setList2"></div><div class="note" style="margin:10px 0 0">Alerte visuelle (bandeau rouge) + vibration si l'appareil la supporte.</div></div>
+    <div class="card"><h3>Système</h3><div id="setList3"></div></div>
+    <div class="card">
+      <h3>Écriture — V2 (désactivée)</h3>
+      <div class="note">L'application est <b>100&nbsp;% lecture seule</b>. Un module <span class="mono">CommandWriter</span> est présent dans le code (file d'écriture sérialisée, trames 0xAA) mais volontairement désactivé : une trame de réglage réécrit tous les paramètres et une erreur peut dérégler la trottinette.</div>
+    </div>
+    <button class="btn danger big" id="wipeAll">Réinitialiser réglages et données</button>
+    <p style="text-align:center;color:var(--dim);font-size:12px;margin-top:14px">MiniQ Dash v1.0 — 100&nbsp;% local, aucun réseau. Pour Teverun Fighter Mini Q (52 V).</p>
+  </section>
+</main>
+
+<nav id="tabbar"><div id="tabscroll"></div></nav>
+<div id="toast"></div>
+<noscript><p style="padding:20px;text-align:center">Cette application nécessite JavaScript.</p></noscript>
+
+<script>
+"use strict";
+/* ================================================================
+   MINIQ DASH — application monofichier
+   Modules : Utils, CRC, FrameParser, Catalog, Store, DB, Charts,
+             BleManager, Demo, UI (pages), Recorder, Settings.
+   ================================================================ */
+
+/* ---------------- Utils ---------------- */
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const now=()=>performance.now();
+const u16=(t,i)=>(t[i]<<8)|t[i+1];                 // big-endian 16 bits
+const u24=(t,i)=>(t[i]<<16)|(t[i+1]<<8)|t[i+2];    // big-endian 24 bits
+const bit=(b,i)=>(b>>i)&1;                          // LSB-first
+const nib=b=>[b>>4,b&15];                           // nibbles : haut puis bas
+const hex=b=>b.toString(16).toUpperCase().padStart(2,"0");
+const toHex=a=>Array.from(a).map(hex).join(" ");
+const isNum=v=>typeof v==="number"&&!Number.isNaN(v);
+const KM2MI=0.621371;
+
+function fmtDist(km,u){return isNum(km)?(u==="mph"?km*KM2MI:km).toFixed(km<10?2:1):"—"}
+function fmtSpd(kmh,u,d=0){return isNum(kmh)?(u==="mph"?kmh*KM2MI:kmh).toFixed(d):"—"}
+function fmtDur(ms){if(!isNum(ms))return"—";const s=Math.floor(ms/1000);const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?`${h} h ${String(m).padStart(2,"0")}`:`${m} min ${String(s%60).padStart(2,"0")} s`}
+
+let toastT=null;
+function toast(msg,err=false,ms=2800){const t=$("#toast");t.textContent=msg;t.className="show"+(err?" err":"");clearTimeout(toastT);toastT=setTimeout(()=>t.className="",ms)}
+
+/* Petites icônes SVG (style Lucide, inline pour rester hors ligne) */
+const IC={
+  gauge:'<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m12 12 3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  list:'<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  zap:'<path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H13L13 2Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  thermo:'<path d="M14 4v9.6a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  batt:'<rect x="2" y="7" width="16" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M21.5 10.5v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  flag:'<path d="M5 21V4m0 1.5c4-2 7 1.5 13-.5v9c-6 2-9-1.5-13 .5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  route:'<circle cx="6" cy="19" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="5" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  dot:'<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/>',
+  hex:'<path d="M21 15.5v-7a2 2 0 0 0-1-1.73l-6-3.5a2 2 0 0 0-2 0l-6 3.5A2 2 0 0 0 5 8.5v7a2 2 0 0 0 1 1.73l6 3.5a2 2 0 0 0 2 0l6-3.5a2 2 0 0 0 1-1.73Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  info:'<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  sliders:'<path d="M4 21v-6M4 10V3M12 21v-8M12 8V3M20 21v-4M20 12V3M2 12h4M9 8h6M17 17h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  bt:'<path d="m7 8 10 8-5 4V4l5 4L7 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  warn:'<path d="M10.3 4.1 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 4.1a2 2 0 0 0-3.4 0ZM12 9.5v4M12 17h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  down:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  share:'<path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7M16 6l-4-4-4 4M12 2v13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  trash:'<path d="M3 6h18M8 6V4a1.5 1.5 0 0 1 1.5-1.5h5A1.5 1.5 0 0 1 16 4v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  help:'<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9.3 9.2a2.8 2.8 0 0 1 5.5.8c0 1.8-2.8 2.4-2.8 4M12 17.5h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  play:'<path d="M7 5l12 7-12 7V5Z" fill="currentColor"/>',
+  stop:'<rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/>'
+};
+const ic=(n,c="ic")=>`<svg class="${c}" viewBox="0 0 24 24" aria-hidden="true">${IC[n]||""}</svg>`;
+
+/* ================================================================
+   CRC-8 (poly 0x07, init 0x00, MSB-first, sans reflect ni xorout)
+   Calculé sur octets 0..18 ; la trame complète fait 20 octets.
+   ================================================================ */
+function crc8(bytes,len){
+  let crc=0;const n=len??bytes.length;
+  for(let j=0;j<n;j++){
+    crc^=bytes[j];
+    for(let i=0;i<8;i++) crc=(crc&0x80)?((crc<<1)^0x07)&0xFF:(crc<<1)&0xFF;
+  }
+  return crc;
+}
+
+/* ================================================================
+   FRAME PARSER — découpage par 20 octets + vérification CRC.
+   Une notification BLE peut contenir plusieurs trames concaténées ;
+   on garde un tampon glissant et on resynchronise sur 0x55/0xAA.
+   ================================================================ */
+const Parser={
+  buf:[],
+  ingest(bytes){                    // bytes : Uint8Array reçue (ou simulée)
+    for(const b of bytes) this.buf.push(b);
+    const frames=[];
+    while(this.buf.length>=20){
+      // resynchronisation : chercher 0x55 (télémétrie) ou 0xAA (commande)
+      let s=0;
+      while(s<this.buf.length && this.buf[s]!==0x55 && this.buf[s]!==0xAA) s++;
+      if(s>0) this.buf.splice(0,s);
+      if(this.buf.length<20) break;
+      const fr=this.buf.slice(0,20);
+      if(crc8(fr,19)===fr[19]){ this.buf.splice(0,20); frames.push(new Uint8Array(fr)); }
+      else { this.buf.splice(0,1); frames.push({bad:true,raw:new Uint8Array(fr)}); } // garder trace du CRC faux
+    }
+    return frames;
+  },
+  reset(){this.buf=[]}
+};
+
+/* ================================================================
+   STORE télémétrie : valeur + horodatage + état « périmé ».
+   ================================================================ */
+const STALE_MS=4000;
+const Store={
+  v:{}, connActive:false, lastFrameAt:0,
+  set(key,val){this.v[key]={v:val,ts:now()}},
+  get(key){const e=this.v[key];return e?e.v:null},
+  fresh(key){const e=this.v[key];return !!(e&&this.connActive&&(now()-e.ts<STALE_MS))},
+  entry(key){return this.v[key]},
+  clearStaleOnDisconnect(){this.connActive=false}
+};
+
+/* ================================================================
+   DECODEUR DE TRAMES — commentaires par champ (reverse-engineering)
+   t = Uint8Array(20) ; [0]=0x55, [1]=id, [2..18]=payload, [19]=CRC
+   ================================================================ */
+const FaultNames={}; // noms génériques générés plus bas (« Défaut #N »)
+
+function tempFromRaw(raw){ // raw-40, avec gestion capteur absent (0 ou 0xFF)
+  if(raw===0||raw===0xFF) return null;
+  return raw-40;
+}
+function ascii(t,a,b){let s="";for(let i=a;i<=b;i++){const c=t[i];if(c===0||c===0xFF)break;s+=String.fromCharCode(c)}return s.replace(/[\x00-\x1F]/g,"").trim()}
+
+const Decoder={
+  decode(t){
+    const id=t[1];
+    switch(id){
+      /* ---------- 55 52 — BATTERIE ---------- */
+      case 0x52:{
+        Store.set("volt_pack",u16(t,2)*0.1);        // tension pack (V)
+        Store.set("volt_pole",u16(t,4)*0.1);        // tension pôle (V)
+        Store.set("amp_pack",u16(t,6)*0.1-1000);    // courant pack (A) — NÉGATIF = régénération
+        Store.set("soc",t[8]);                      // SOC %
+        Store.set("soh",t[9]);                      // SOH %
+        let tmax=null;
+        for(let i=0;i<7;i++){                       // 7 capteurs batterie (raw-40)
+          const v=tempFromRaw(t[10+i]);
+          Store.set("batt_t"+(i+1),v);
+          if(v!==null&&(tmax===null||v>tmax))tmax=v;
+        }
+        Store.set("batt_tmax",tmax);                // dérivé : plus chaud des 7
+        Store.set("cell_t_max",tempFromRaw(t[17])); // temp cellule max
+        Store.set("cell_t_min",tempFromRaw(t[18])); // temp cellule min
+        break;
+      }
+      /* ---------- 55 53 — BMS ---------- */
+      case 0x53:{
+        Store.set("bms_relay",toHex(t.slice(2,5))); // état des relais (3 octets bruts)
+        Store.set("mos_charge",t[5]);               // MOS charge
+        Store.set("mos_discharge",t[6]);            // MOS décharge
+        Store.set("balancing",t[7]);                // bitfield équilibrage (bit i = cellule i+1)
+        let cap=u16(t,8); let ver=1;                // capacité Ah — v2 la place en t[10..11]
+        if(cap===0&&u16(t,10)>0){cap=u16(t,10);ver=2;}
+        Store.set("cap_raw",cap); Store.set("cap_ver",ver);
+        Store.set("cap_ah",cap>=100?cap/100:cap);   // heuristique : 1300 => 13.00 Ah
+        Store.set("cycles",u16(t,12));              // cycles de charge
+        Store.set("cell_count",t[14]);              // nombre de cellules
+        Store.set("cell_mv_max",u16(t,15));         // tension cellule max (mV)
+        Store.set("cell_mv_min",u16(t,17));         // tension cellule min (mV)
+        Store.set("cell_delta",u16(t,15)-u16(t,17));// delta (mV)
+        break;
+      }
+      /* ---------- 55 54 — DÉFAUTS ---------- */
+      case 0x54:{
+        let n=0;
+        for(let i=0;i<17;i++){                      // t[2..18] : sévérité par type (>0 = actif)
+          const sev=t[2+i];
+          Store.set("fault_"+(i+1),sev);
+          if(sev>0)n++;
+        }
+        Store.set("fault_count",n);
+        Store.set("charge_state",t[17]);            // t[17] = aussi état de charge
+        break;
+      }
+      /* ---------- 55 71 — CONTRÔLE ---------- */
+      case 0x71:{
+        Store.set("gear",t[3]);                     // rapport (1/2/3)
+        Store.set("cruise",(t[4]>>1)&3);            // croisière bits 1-2
+        Store.set("abs_on",bit(t[4],3));            // ABS bit 3
+        Store.set("start_mode",bit(t[4],6));        // mode départ bit 6
+        Store.set("pole_pairs",t[5]);               // paires de pôles moteur
+        Store.set("wheel_in",t[6]*0.1);             // taille roue (pouces)
+        Store.set("prot_temp",t[7]);                // température de protection (offset non vérifié)
+        Store.set("start_lvl",nib(t[8]));           // nibbles niveaux de démarrage
+        Store.set("eabs_lvl",nib(t[9]));            // nibbles niveaux EABS (régénération)
+        Store.set("gear_spd_lim",t[10]);            // limite vitesse du rapport
+        Store.set("main_spd_lim",t[11]);            // limite vitesse principale
+        Store.set("maxcur_f",t[12]);                // courant max avant
+        Store.set("maxcur_r",t[13]);                // courant max arrière
+        Store.set("nom_volt",t[15]);                // tension nominale pack
+        Store.set("front_ctrl",t[16]);              // bitfield contrôle avant
+        Store.set("sys_eco",bit(t[17],0));          // systemStatus
+        Store.set("sys_miles",bit(t[17],1));
+        Store.set("sys_atmode",bit(t[17],2));
+        Store.set("sys_smart",bit(t[17],4));
+        Store.set("sys_reverse",bit(t[17],5));
+        Store.set("sleep_time",t[18]&7);            // veille (min ?)
+        Store.set("pr_time",(t[18]>>3)&31);         // prTime (unité non vérifiée)
+        break;
+      }
+      /* ---------- 55 72 — MOTEUR ---------- */
+      case 0x72:{
+        Store.set("ecu_f",u16(t,2));                // statuts ECU avant (brut)
+        Store.set("motor_cur_f",u16(t,4)*0.1);      // courant moteur avant (A)
+        Store.set("motor_t_f",(t[9]===0||t[9]===0xFF)?null:t[9]); // temp moteur AV (brut, sans offset)
+        Store.set("ecu_r",u16(t,10));               // statuts ECU arrière (brut)
+        Store.set("light_on",bit(t[11],4));         // phare
+        Store.set("turn_l",bit(t[11],5));           // clignotant gauche
+        Store.set("turn_r",bit(t[11],6));           // clignotant droit
+        Store.set("motor_cur_r",u16(t,12)*0.1);     // courant moteur arrière (A)
+        Store.set("speed_raw",u16(t,15));           // vitesse brute
+        Store.set("motor_t_r",(t[17]===0||t[17]===0xFF)?null:t[17]); // temp moteur AR
+        Store.set("sys_status3",t[18]);             // systemStatus3
+        // vitesse réelle : 287 × roue / speed_raw (0 si speed_raw>=3000 ou <=0.5)
+        const wheel=Store.get("wheel_in"), sr=u16(t,15);
+        let spd=0;
+        if(isNum(wheel)&&wheel>0&&sr<3000)spd=287*wheel/sr;
+        if(spd<=0.5)spd=0;
+        Store.set("speed_kmh",isNum(wheel)?spd:null);
+        break;
+      }
+      /* ---------- 55 73 — TRAJET ---------- */
+      case 0x73:{
+        Store.set("spd_avg",u16(t,2)*0.1);          // vitesse moyenne (km/h)
+        Store.set("spd_max",u16(t,4)*0.1);          // vitesse max
+        Store.set("trip_km",u16(t,6)*0.1);          // trip (km)
+        Store.set("odo_km",u24(t,8));               // odomètre (km, 3 octets)
+        Store.set("regen_cumul",u16(t,11)*0.1);     // énergie régénérée cumulée (unité NON vérifiée)
+        Store.set("trip_bits1",t[16]);              // bitfield
+        Store.set("custom_btn",t[17]);              // fonction touche custom
+        Store.set("trip_bits2",t[18]);              // bitfield
+        break;
+      }
+      /* ---------- 55 41/42/43/44/45 — IDENTITÉ & VERSIONS ---------- */
+      case 0x41: Store.set("serial_batt",ascii(t,2,16)); break;   // série batterie
+      case 0x42: Store.set("serial_frame",ascii(t,2,18)); break;  // numéro de cadre
+      case 0x43:                                                  // versions SW / HW
+        Store.set("ver_sw",`${t[2]}.${t[3]}.${t[4]}`);
+        Store.set("ver_hw",`${t[6]}.${t[7]}.${t[8]}`);
+        break;
+      case 0x44:                                                  // afficheur / batterie / LC (offsets supposés)
+        Store.set("ver_disp",`${t[2]}.${t[3]}.${t[4]}`);
+        Store.set("ver_bms",`${t[6]}.${t[7]}.${t[8]}`);
+        Store.set("ver_lc",`${t[10]}.${t[11]}.${t[12]}`);
+        break;
+      case 0x45:                                                  // contrôleurs AV / AR (offsets supposés)
+        Store.set("ver_ctrl_f",`${t[2]}.${t[3]}.${t[4]}`);
+        Store.set("ver_ctrl_r",`${t[6]}.${t[7]}.${t[8]}`);
+        break;
+    }
+    // puissance instantanée dérivée : (ImoteurAR + ImoteurAV) × tension pack
+    const vf=Store.get("motor_cur_f"),vr=Store.get("motor_cur_r"),vp=Store.get("volt_pack");
+    if(isNum(vf)&&isNum(vr)&&isNum(vp))Store.set("power_w",(vf+vr)*vp);
+  }
+};
+
+/* ================================================================
+   CATALOGUE : label + unité + aide « ? » par valeur (page Tout).
+   kind: v=volt, a=amp, t=temp, pct, spd, km, wh, num, txt, hex, bit
+   ================================================================ */
+const CATS={batt:"Batterie",bms:"BMS",def:"Défauts",ctrl:"Contrôle",mot:"Moteur",traj:"Trajet",id:"Identité",der:"Dérivés (calculés)"};
+const CATALOG=[];
+function cat(k,catName,label,unit,help,fmt){CATALOG.push({k,cat:catName,label,unit,help,fmt})}
+
+cat("volt_pack","batt","Tension pack","V","Tension totale du pack batterie (52 V nominal), mesurée par le BMS.");
+cat("volt_pole","batt","Tension pôle","V","Tension aux bornes de sortie (pôles). Un écart avec la tension pack indique une chute dans le câblage/fusible.");
+cat("amp_pack","batt","Courant pack","A","Courant sortant de la batterie. NÉGATIF = régénération (le freinage renvoie du courant dans le pack).");
+cat("soc","batt","SOC","%","State of Charge : niveau de charge restant, estimé par le BMS.");
+cat("soh","batt","SOH","%","State of Health : santé globale de la batterie par rapport à sa capacité neuve.");
+for(let i=1;i<=7;i++)cat("batt_t"+i,"batt","Capteur batterie "+i,"°C","Sonde de température n°"+i+" répartie dans le pack. « n/d » = sonde absente (valeur brute 0 ou FF).");
+cat("batt_tmax","batt","Temp. batterie max","°C","Maximum calculé parmi les 7 sondes du pack (génère les alertes).");
+cat("cell_t_max","batt","Temp. cellule max","°C","Température de la cellule la plus chaude selon le BMS.");
+cat("cell_t_min","batt","Temp. cellule min","°C","Température de la cellule la plus froide selon le BMS.");
+
+cat("bms_relay","bms","Relais (brut)","","État des relais internes du BMS (3 octets bruts, décodage non documenté).");
+cat("mos_charge","bms","MOS charge","","Transistor MOS de charge : 1 = autorisée, 0 = bloquée (protection).");
+cat("mos_discharge","bms","MOS décharge","","Transistor MOS de décharge : 1 = sortie batterie active, 0 = coupée (protection).");
+cat("balancing","bms","Équilibrage (bitfield)","","Bit n = cellule n+1 en cours d'équilibrage (égalisation des tensions en fin de charge).");
+cat("cap_ah","bms","Capacité pack","Ah","Capacité totale annoncée par le BMS (13 Ah d'origine). Échelle déduite par heuristique.");
+cat("cap_raw","bms","Capacité (brute)","","Valeur brute non mise à l'échelle — utile pour vérifier l'heuristique Ah.");
+cat("cap_ver","bms","Version champ capacité","","1 = capacité en octets 8-9, 2 = en octets 10-11 (variante de firmware).");
+cat("cycles","bms","Cycles de charge","","Nombre de cycles de charge complets comptabilisés par le BMS.");
+cat("cell_count","bms","Nombre de cellules","","Cellules en série dans le pack (14 s pour du 52 V).");
+cat("cell_mv_max","bms","Cellule max","mV","Tension de la cellule la plus chargée.");
+cat("cell_mv_min","bms","Cellule min","mV","Tension de la cellule la plus déchargée.");
+cat("cell_delta","bms","Delta cellules","mV","Écart max-min : au-delà de ~100 mV, le déséquilibre est marqué.");
+
+for(let i=1;i<=17;i++)cat("fault_"+i,"def","Défaut #"+i,"","Sévérité du type de défaut n°"+i+" (>0 = actif). Nom générique : cartographie non documentée sur la Mini Q.");
+cat("fault_count","def","Défauts actifs","","Nombre de types de défauts actuellement actifs.");
+cat("charge_state","def","État de charge","","Octet 17 de la trame 55 54 : état de charge (0 = repos/roulage, autre = en charge ?).");
+
+cat("gear","ctrl","Rapport","","Rapport engagé (1/2/3).");
+cat("cruise","ctrl","Régulateur","","Réglage croisière (bits 1-2 du bitfield). 0 = off ?");
+cat("abs_on","ctrl","ABS","","Freinage antiblocage électronique (bit 3).");
+cat("start_mode","ctrl","Mode départ","","Comportement au démarrage (bit 6). 0 = zéro-départ ?, 1 = kick-start ?");
+cat("pole_pairs","ctrl","Paires de pôles","","Paires de pôles du moteur (sert au calcul de vitesse).");
+cat("wheel_in","ctrl","Taille roue","in","Diamètre de roue configuré (×0,1). 10\" sur Fighter Mini.");
+cat("prot_temp","ctrl","Temp. de protection","°C","Seuil de protection thermique du contrôleur (offset non vérifié).");
+cat("gear_spd_lim","ctrl","Limite du rapport","km/h","Vitesse max autorisée sur le rapport actuel.");
+cat("main_spd_lim","ctrl","Limite principale","km/h","Limite de vitesse générale configurée.");
+cat("maxcur_f","ctrl","Courant max AV","A","Limite de courant du contrôleur avant.");
+cat("maxcur_r","ctrl","Courant max AR","A","Limite de courant du contrôleur arrière.");
+cat("nom_volt","ctrl","Tension nominale","V","Tension nominale du pack configurée (52 V).");
+cat("front_ctrl","ctrl","Bitfield contrôle AV","","Octet de configuration avant (bits non documentés).");
+cat("sys_eco","ctrl","Mode Éco","","systemStatus bit 0 : 1 = mode éco actif.");
+cat("sys_miles","ctrl","Unité miles","","systemStatus bit 1 : 1 = affichage en miles sur la trottinette.");
+cat("sys_atmode","ctrl","Mode AT","","systemStatus bit 2 (mode « at », non documenté).");
+cat("sys_smart","ctrl","Mode Smart","","systemStatus bit 4.");
+cat("sys_reverse","ctrl","Marche arrière","","systemStatus bit 5 : 1 = marche arrière active.");
+cat("start_lvl_h","ctrl","Niv. démarrage (haut)","","Nibble haut de l'octet 8 (55 71).");
+cat("start_lvl_l","ctrl","Niv. démarrage (bas)","","Nibble bas de l'octet 8 (55 71).");
+cat("eabs_h","ctrl","EABS (nibble haut)","","Niveau de freinage régénératif — nibble haut de l'octet 9.");
+cat("eabs_l","ctrl","EABS (nibble bas)","","Niveau de freinage régénératif — nibble bas de l'octet 9.");
+cat("sleep_time","ctrl","Veille","min","Délai de mise en veille (t[18] & 7 ; unité probable : minutes).");
+cat("pr_time","ctrl","prTime","","Champ prTime ((t[18]>>3) & 31 ; signification non documentée).");
+
+cat("ecu_f","mot","ECU avant (brut)","","Statuts du contrôleur avant, 16 bits bruts.");
+cat("motor_cur_f","mot","Courant moteur AV","A","Courant de phase moteur avant.");
+cat("motor_t_f","mot","Temp. moteur AV","°C","Température du moteur avant (valeur brute, sans offset). n/d = capteur absent.");
+cat("ecu_r","mot","ECU arrière (brut)","","Statuts du contrôleur arrière, 16 bits bruts (phare = bit 4 de l'octet haut).");
+cat("motor_cur_r","mot","Courant moteur AR","A","Courant de phase moteur arrière.");
+cat("motor_t_r","mot","Temp. moteur AR","°C","Température du moteur arrière (valeur brute, sans offset). n/d = capteur absent.");
+cat("speed_raw","mot","Vitesse brute","","Compteur brut du capteur moteur ; ≥3000 = arrêt. Formule : 287×roue/vitesse brute.");
+cat("light_on","mot","Phare","","Phare allumé (bit 4 de l'octet 11).");
+cat("turn_l","mot","Clignotant G","","Clignotant gauche actif (bit 5).");
+cat("turn_r","mot","Clignotant D","","Clignotant droit actif (bit 6).");
+cat("sys_status3","mot","systemStatus3","","Troisième octet de statut système (non documenté).");
+
+cat("spd_avg","traj","Vitesse moyenne","km/h","Vitesse moyenne du trajet courant côté trottinette.");
+cat("spd_max","traj","Vitesse max","km/h","Vitesse maximale du trajet courant.");
+cat("trip_km","traj","Trip","km","Distance du trajet courant (remise à zéro à l'arrêt ?).");
+cat("odo_km","traj","Odomètre","km","Kilométrage total de la trottinette.");
+cat("regen_cumul","traj","Régén. cumulée","?","Énergie régénérée cumulée (unité NON vérifiée : ×0,1 — peut-être Wh ou kWh×10).");
+cat("custom_btn","traj","Touche custom","","Fonction affectée à la touche personnalisée.");
+cat("trip_bits1","traj","Bitfield 1 (55 73)","","Octet 16 de la trame trajet (bits non documentés).");
+cat("trip_bits2","traj","Bitfield 2 (55 73)","","Octet 18 de la trame trajet (bits non documentés).");
+
+cat("serial_batt","id","Série batterie","","Numéro de série de la batterie (ASCII, trame 55 41).");
+cat("serial_frame","id","Numéro de cadre","","Numéro de cadre (ASCII, trame 55 42).");
+cat("ver_sw","id","Version SW","","Version logicielle (55 43).");
+cat("ver_hw","id","Version HW","","Révision matérielle (55 43).");
+cat("ver_disp","id","Version afficheur","","Version de l'écran (55 44, offsets supposés).");
+cat("ver_bms","id","Version batterie","","Version firmware BMS (55 44, offsets supposés).");
+cat("ver_lc","id","Version LC","","Version LC (55 44, offsets supposés).");
+cat("ver_ctrl_f","id","Version contrôleur AV","","Version contrôleur avant (55 45, offsets supposés).");
+cat("ver_ctrl_r","id","Version contrôleur AR","","Version contrôleur arrière (55 45, offsets supposés).");
+
+cat("speed_kmh","der","Vitesse réelle","km/h","287 × taille roue ÷ vitesse brute. 0 si vitesse brute ≥ 3000 ou résultat ≤ 0,5 km/h.");
+cat("power_w","der","Puissance instantanée","W","(Courant moteur AV + AR) × tension pack.");
+
+/* ================================================================
+   DB — IndexedDB avec repli localStorage / mémoire.
+   ================================================================ */
+const DB={
+  mode:"none",db:null,mem:{settings:{},sessions:[]},
+  async init(){
+    if(!window.indexedDB){this.mode="local";return this.initLocal()}
+    try{
+      this.db=await new Promise((res,rej)=>{
+        const rq=indexedDB.open("miniq-dash",1);
+        rq.onupgradeneeded=e=>{
+          const d=e.target.result;
+          if(!d.objectStoreNames.contains("settings"))d.createObjectStore("settings");
+          if(!d.objectStoreNames.contains("sessions"))d.createObjectStore("sessions",{keyPath:"id",autoIncrement:true});
+        };
+        rq.onsuccess=()=>res(rq.result);
+        rq.onerror=()=>rej(rq.error);
+        rq.onblocked=()=>rej(new Error("IDB bloqué"));
+      });
+      this.mode="idb";
+    }catch(e){console.warn("IndexedDB indisponible, repli localStorage",e);this.mode="local";this.initLocal()}
+  },
+  initLocal(){this._lsOK=(()=>{try{localStorage.setItem("__t","1");localStorage.removeItem("__t");return true}catch(e){return false}})()},
+  _tx(store,mode,fn){return new Promise((res,rej)=>{const t=this.db.transaction(store,mode);const rq=fn(t.objectStore(store));t.oncomplete=()=>res(rq?rq.result:undefined);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})},
+  async setSetting(k,v){
+    if(this.mode==="idb")return this._tx("settings","readwrite",s=>s.put(v,k));
+    if(this._lsOK)localStorage.setItem("mqs:"+k,JSON.stringify(v));else this.mem.settings[k]=v;
+  },
+  async getSetting(k,def){
+    try{
+      if(this.mode==="idb"){const v=await this._tx("settings","readonly",s=>s.get(k));return v===undefined?def:v}
+      if(this._lsOK){const v=localStorage.getItem("mqs:"+k);return v==null?def:JSON.parse(v)}
+      return k in this.mem.settings?this.mem.settings[k]:def;
+    }catch(e){return def}
+  },
+  async addSession(sess){ // {startedAt,endedAt,rows,count}
+    if(this.mode==="idb")return this._tx("sessions","readwrite",s=>s.add(sess));
+    sess.id=Date.now();this.mem.sessions.push(sess);return sess.id;
+  },
+  async putSession(sess){
+    if(this.mode==="idb")return this._tx("sessions","readwrite",s=>s.put(sess));
+    const i=this.mem.sessions.findIndex(s=>s.id===sess.id);if(i>=0)this.mem.sessions[i]=sess;else this.mem.sessions.push(sess);
+  },
+  async allSessions(){
+    if(this.mode==="idb"){const v=await this._tx("sessions","readonly",s=>s.getAll());return(v||[]).sort((a,b)=>b.startedAt-a.startedAt)}
+    return this.mem.sessions.slice().sort((a,b)=>b.startedAt-a.startedAt);
+  },
+  async delSession(id){
+    if(this.mode==="idb")return this._tx("sessions","readwrite",s=>s.delete(id));
+    this.mem.sessions=this.mem.sessions.filter(s=>s.id!==id);
+  },
+  async clearSessions(){
+    if(this.mode==="idb")return this._tx("sessions","readwrite",s=>s.clear());
+    this.mem.sessions=[];
+  }
+};
+
+/* ================================================================
+   CHARTS — canvas dessinés main (DPR-aware, sans librairie)
+   ================================================================ */
+function fitCanvas(cv){
+  const dpr=window.devicePixelRatio||1,r=cv.getBoundingClientRect();
+  if(r.width<2)return null;
+  if(cv.width!==Math.round(r.width*dpr)||cv.height!==Math.round(r.height*dpr)){cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.height*dpr)}
+  const ctx=cv.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);return{ctx,w:r.width,h:r.height}
+}
+const cssVar=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* tampon circulaire horodaté */
+class Ring{
+  constructor(cap){this.cap=cap;this.t=[];this.v=[];this.n=0}
+  push(t,v){this.t.push(t);this.v.push(v);if(this.t.length>this.cap){this.t.shift();this.v.shift()}}
+  clear(){this.t.length=0;this.v.length=0}
+}
+const ENERGY=new Ring(720);                 // 10 Hz × 60 s + marge
+const TEMP_H={batt:new Ring(300),f:new Ring(300),r:new Ring(300)}; // 2 Hz → 10 min
+
+/* Graphe courant signé (60 s) : rouge au-dessus de 0, vert en dessous */
+function drawEnergy(cv){
+  const f=fitCanvas(cv);if(!f)return;const{ctx,w,h}=f;
+  ctx.clearRect(0,0,w,h);
+  const T=now(),WIN=60000,mid=h*0.52;
+  // échelle auto
+  let maxA=8;
+  for(let i=0;i<ENERGY.t.length;i++){if(T-ENERGY.t[i]<=WIN){const a=Math.abs(ENERGY.v[i]);if(a>maxA)maxA=Math.ceil(a/5)*5}}
+  const y=v=>mid-(v/maxA)*(mid-8);
+  const x=t=>w-((T-t)/WIN)*w;
+  // grille + labels
+  ctx.strokeStyle=cssVar("--line");ctx.fillStyle=cssVar("--dim");ctx.font="600 10px -apple-system,sans-serif";ctx.lineWidth=1;
+  ctx.beginPath();
+  for(let s=0;s<=60;s+=15){const px=x(T-s*1000);ctx.moveTo(px,6);ctx.lineTo(px,h-4);ctx.fillText(s===0?"0s":"-"+s+"s",Math.max(px-18,2),12)}
+  ctx.stroke();
+  ctx.strokeStyle=cssVar("--dim");ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(0,mid);ctx.lineTo(w,mid);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillText("+"+maxA+" A",4,y(maxA)+10);ctx.fillText("-"+maxA+" A",4,y(-maxA)-3);
+  if(ENERGY.t.length<2)return;
+  const pts=[];
+  for(let i=0;i<ENERGY.t.length;i++){if(T-ENERGY.t[i]<=WIN)pts.push([x(ENERGY.t[i]),y(ENERGY.v[i])])}
+  if(pts.length<2)return;
+  const pass=(top,colorFill)=>{
+    ctx.save();ctx.beginPath();ctx.rect(0,top?0:mid,w,top?mid:h-mid);ctx.clip();
+    ctx.beginPath();ctx.moveTo(pts[0][0],mid);
+    for(const p of pts)ctx.lineTo(p[0],p[1]);
+    ctx.lineTo(pts[pts.length-1][0],mid);ctx.closePath();
+    ctx.fillStyle=colorFill;ctx.fill();ctx.restore();
+  };
+  pass(true,"rgba(248,113,113,.20)");   // décharge (au-dessus de 0)
+  pass(false,"rgba(52,211,153,.25)");   // régénération (en dessous de 0)
+  ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  for(const p of pts)ctx.lineTo(p[0],p[1]);
+  ctx.strokeStyle=cssVar("--txt")||"#e8eef8";ctx.lineWidth=1.6;ctx.globalAlpha=.9;ctx.stroke();ctx.globalAlpha=1;
+  const last=pts[pts.length-1];
+  ctx.beginPath();ctx.arc(last[0],last[1],3.5,0,7);ctx.fillStyle=(ENERGY.v[ENERGY.v.length-1]<0?(cssVar("--ok")||"#34d399"):(cssVar("--bad")||"#f87171"));ctx.fill();
+}
+/* Graphe multi-séries (températures, 10 min) */
+function drawTempsChart(cv){
+  const f=fitCanvas(cv);if(!f)return;const{ctx,w,h}=f;
+  ctx.clearRect(0,0,w,h);
+  const T=now(),WIN=600000;
+  const series=[[TEMP_H.batt,"#58a6ff"],[TEMP_H.f,"#f59e0b"],[TEMP_H.r,"#fb7185"]];
+  let mn=999,mx=-999,any=false;
+  for(const[r]of series)for(let i=0;i<r.t.length;i++){if(T-r.t[i]<=WIN&&r.v[i]!=null){any=true;mn=Math.min(mn,r.v[i]);mx=Math.max(mx,r.v[i])}}
+  ctx.strokeStyle=cssVar("--line");ctx.lineWidth=1;ctx.font="600 10px -apple-system,sans-serif";ctx.fillStyle=cssVar("--dim");
+  if(!any){ctx.fillStyle=cssVar("--mut");ctx.font="500 12px -apple-system,sans-serif";ctx.fillText("L'historique se remplit pendant la connexion…",14,h/2);return}
+  if(mn>mx-4){mn-=2;mx+=2}
+  const y=v=>h-8-((v-mn)/(mx-mn))*(h-22);
+  const x=t=>w-((T-t)/WIN)*w;
+  ctx.beginPath();
+  for(let g=0;g<=4;g++){const vv=mn+(mx-mn)*g/4,px=y(vv);ctx.moveTo(34,px);ctx.lineTo(w,px);ctx.fillText(Math.round(vv)+"°",4,px+3)}
+  ctx.stroke();
+  for(const[r,color]of series){
+    let started=false;ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=1.7;ctx.lineJoin="round";
+    for(let i=0;i<r.t.length;i++){
+      if(T-r.t[i]>WIN||r.v[i]==null){started=false;continue}
+      const px=x(r.t[i]),py=y(r.v[i]);
+      if(!started){ctx.moveTo(px,py);started=true}else ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+  }
+}
+/* ================================================================
+   JOURNAL BRUT + EXPLORATEUR DE TRAMES
+   ================================================================ */
+const Raw={
+  stats:new Map(),   // "55 72" -> {count,last,prev,ts}
+  log:[], LOG_MAX:400,
+  total:0,crcErr:0,rate:0,_rateN:0,_rateT:0,
+  paused:false,
+  push(t,crcOk,dir="RX"){
+    const hx=toHex(t);
+    this.log.push({t:Date.now(),dir,hex:hx,ok:crcOk});
+    if(this.log.length>this.LOG_MAX)this.log.shift();
+    if(!crcOk){this.crcErr++;UI.dirtyRaw=true;return}
+    if(dir!=="RX")return;
+    this.total++;this._rateN++;
+    const k=hex(t[0])+" "+hex(t[1]);
+    let s=this.stats.get(k);
+    if(!s){s={count:0,last:null,prev:null,ts:0};this.stats.set(k,s)}
+    s.prev=s.last;s.last=new Uint8Array(t);s.count++;s.ts=now();
+    UI.dirtyRaw=true;
+  },
+  tick(){const t=now();if(t-this._rateT>1000){this.rate=this._rateN/((t-this._rateT)/1000);this._rateN=0;this._rateT=t}},
+  clear(){this.stats.clear();this.log.length=0;this.total=0;this.crcErr=0;UI.dirtyRaw=true;UI.buildRawTable()}
+};
+const FRAME_NAMES={52:"Batterie",53:"BMS",54:"Défauts",71:"Contrôle",72:"Moteur",73:"Trajet",41:"Série batt.",42:"Cadre",43:"Versions SW/HW",44:"Versions aff.",45:"Versions ctrl.",AA:"Commande"};
+
+/* ================================================================
+   DIAGNOSTIC BLE — services/caractéristiques découverts
+   ================================================================ */
+const Diag={
+  services:[],
+  reset(){this.services=[];this.render()},
+  addService(uuid,chars){this.services.push({uuid,chars});this.render()},
+  render(){
+    const el=$("#bleDiag");if(!el)return;
+    if(!this.services.length){el.textContent="Aucune connexion pour le moment.";return}
+    el.innerHTML=this.services.map(s=>`<div class="svc"><b>${s.uuid}</b><br>${s.chars.map(c=>`<span class="mono">${c.uuid.slice(0,8)}…</span> [${c.props}]`).join("<br>")}</div>`).join("");
+  }
+};
+
+/* ================================================================
+   COMMAND WRITER (V2) — architecture présente, DÉSACTIVÉE.
+   Une trame complète réécrit tous les réglages : le moindre octet
+   faux peut dérégler la trottinette. Ne pas activer avant
+   validation complète du protocole sur la Mini Q.
+   ================================================================ */
+const CommandWriter={
+  enabled:false,                 // ← V1 : lecture seule. NE PAS passer à true.
+  _q:Promise.resolve(),
+  enqueue(bytes){                // sérialise les écritures (1 trame = 1 écriture)
+    if(!this.enabled){console.warn("CommandWriter désactivé (lecture seule V1).");return Promise.reject(new Error("écriture désactivée"))}
+    this._q=this._q.then(()=>Ble.write(bytes));
+    return this._q;
+  }
+};
+
+/* ================================================================
+   BLE MANAGER — UART-over-BLE propriétaire (ISSC/Microchip)
+   ================================================================ */
+const SVC_ISSC="49535343-fe7d-4ae5-8fa9-9fafd205e455";
+const CHR_NOTIFY="49535343-1e4d-4bd9-ba61-23c647249616";
+const CHR_WRITE="49535343-aca3-481c-91ec-d85e28a60318";
+const FALLBACK_SERVICES=[
+  "0000ffe0-0000-1000-8000-00805f9b34fb",
+  "0000fff0-0000-1000-8000-00805f9b34fb",
+  "0003cdd0-0000-1000-8000-00805f9b0131"
+];
+const OPTIONAL=[SVC_ISSC,...FALLBACK_SERVICES];
+
+const Ble={
+  device:null,gatt:null,notifyChar:null,writeChar:null,
+  state:"off",            // off | scanning | connecting | connected | reconnecting
+  manual:false,           // déconnexion volontaire -> pas de reconnexion auto
+  hkTimer:null,reconTries:0,rssi:null,_advOff:null,
+
+  supported:()=>!!(navigator.bluetooth&&navigator.bluetooth.requestDevice),
+
+  async connect(){        // appelé UNIQUEMENT depuis un geste utilisateur
+    if(!this.supported()){toast("Web Bluetooth non disponible. Sur iPhone, utilisez le navigateur Bluefy.",true,4200);return}
+    this.manual=false;
+    try{
+      this.setState("scanning");
+      // acceptAllDevices : pas de filtre par préfixe possible ; service en optionalServices
+      this.device=await navigator.bluetooth.requestDevice({
+        acceptAllDevices:true,
+        optionalServices:OPTIONAL
+      });
+      if(this._advOff){try{this.device.removeEventListener("advertisementreceived",this._advOff)}catch(e){}this._advOff=null}
+      this.device.addEventListener("gattserverdisconnected",()=>this.onDisconnect());
+      await this.attach();
+    }catch(e){this.handleErr(e);this.setState("off")}
+  },
+
+  async reconnect(){      // sans nouvelle fenêtre de sélection
+    if(!this.device){return this.connect()}
+    this.manual=false;this.reconTries=0;
+    this.setState("reconnecting");
+    try{await this.attach()}catch(e){this.handleErr(e);this.scheduleReconnect()}
+  },
+
+  async attach(){
+    this.setState("connecting");
+    if(!this.device.gatt.connected) await this.device.gatt.connect();
+    this.gatt=this.device.gatt;
+    Diag.reset();Parser.reset();
+    // 1) énumérer TOUS les services et les logger (diagnostic Bluefy)
+    const svcs=await this.gatt.getPrimaryServices();
+    for(const s of svcs){
+      let chars=[];
+      try{chars=(await s.getCharacteristics()).map(c=>({uuid:c.uuid,props:[c.properties.notify&&"notify",c.properties.indicate&&"indicate",c.properties.write&&"write",c.properties.writeWithoutResponse&&"writeNR",c.properties.read&&"read"].filter(Boolean).join(",")}))}catch(e){}
+      console.log("[BLE] service:",s.uuid,chars);
+      Diag.addService(s.uuid,chars);
+    }
+    // 2) choisir le service UART : ISSC d'abord, replis ensuite
+    this.notifyChar=null;this.writeChar=null;
+    const plan=[[SVC_ISSC,CHR_NOTIFY,CHR_WRITE],...FALLBACK_SERVICES.map(u=>[u,null,null])];
+    let used=null;
+    for(const[suuid,nu,wu]of plan){
+      try{
+        const svc=await this.gatt.getPrimaryService(suuid);
+        const chs=await svc.getCharacteristics();
+        let notify=null,write=null;
+        if(nu){try{notify=await svc.getCharacteristic(nu)}catch(e){}}
+        if(wu){try{write=await svc.getCharacteristic(wu)}catch(e){}}
+        if(!notify)notify=chs.find(c=>c.properties.notify||c.properties.indicate)||null;
+        if(!write)write=chs.find(c=>c.properties.write||c.properties.writeWithoutResponse)||null;
+        if(notify){this.notifyChar=notify;this.writeChar=write;used=suuid;break}
+      }catch(e){/* service absent, on essaie le suivant */}
+    }
+    if(!this.notifyChar) throw Object.assign(new Error("Service UART introuvable (aucune caractéristique notify)."),{name:"NotSupportedError"});
+    console.log("[BLE] UART via service",used,"notify:",this.notifyChar.uuid,"write:",this.writeChar?this.writeChar.uuid:"—");
+
+    // 3) notifications (CCCD) puis handshake
+    await this.notifyChar.startNotifications();
+    this.notifyChar.addEventListener("characteristicvaluechanged",ev=>{
+      const dv=ev.target.value;
+      ingestBytes(new Uint8Array(dv.buffer,dv.byteOffset,dv.byteLength));
+    });
+    this.reconTries=0;
+    this.setState("connected");
+    Store.connActive=true;
+    await this.sendHandshake();               // immédiat
+    clearInterval(this.hkTimer);
+    this.hkTimer=setInterval(()=>this.sendHandshake(),6500); // puis toutes les 6,5 s
+    this.watchRssi();
+    Wake.acquire();
+    toast("Connecté à "+(this.device.name||"la trottinette"));
+  },
+
+  buildHandshake(){ // AA 01 10 00 FF×15 + CRC (20 octets)
+    const b=[0xAA,0x01,0x10,0x00];
+    for(let i=0;i<15;i++)b.push(0xFF);
+    b.push(crc8(b,19));
+    return new Uint8Array(b);
+  },
+  async sendHandshake(){
+    try{await this.write(this.buildHandshake())}
+    catch(e){console.warn("handshake:",e)}
+  },
+  async write(bytes){
+    if(!this.writeChar)return;
+    if(Demo.active)return;
+    try{
+      Raw.log.push({t:Date.now(),dir:"TX",hex:toHex(bytes),ok:true});
+      if(this.writeChar.properties.write) await this.writeChar.writeValue(bytes);
+      else await this.writeChar.writeValueWithoutResponse(bytes);
+    }catch(e){console.warn("write:",e);throw e}
+  },
+
+  disconnect(manual=true){
+    this.manual=manual;
+    clearInterval(this.hkTimer);this.hkTimer=null;
+    try{if(this.device&&this.device.gatt.connected)this.device.gatt.disconnect()}catch(e){}
+    this.onDisconnect(true);
+  },
+
+  onDisconnect(silent){
+    clearInterval(this.hkTimer);this.hkTimer=null;
+    this.notifyChar=null;this.writeChar=null;
+    Store.clearStaleOnDisconnect();           // valeurs périmées -> grisées
+    Wake.release();
+    if(!silent)console.log("[BLE] déconnecté");
+    if(!this.manual&&this.device)this.scheduleReconnect();
+    else this.setState("off");
+  },
+  scheduleReconnect(){
+    if(this.manual||!this.device)return;
+    this.setState("reconnecting");
+    const d=Math.min(1000*Math.pow(2,this.reconTries),10000);
+    this.reconTries++;
+    setTimeout(async()=>{
+      if(this.manual||Demo.active||!this.device)return;
+      try{await this.attach()}catch(e){this.scheduleReconnect()}
+    },d);
+  },
+
+  async watchRssi(){      // RSSI si watchAdvertisements est disponible (souvent absent sur iOS)
+    try{
+      if(this.device&&this.device.watchAdvertisements){
+        const h=ev=>{if(ev.rssi!=null){this.rssi=ev.rssi;UI.dirtyTop=true}};
+        this._advOff=h;
+        this.device.addEventListener("advertisementreceived",h);
+        await this.device.watchAdvertisements();
+      }
+    }catch(e){/* non supporté : on affiche juste « n/d » */}
+  },
+
+  handleErr(e){
+    console.warn("[BLE]",e);
+    const m={
+      NotFoundError:"Aucun appareil sélectionné (le nom commence par T, XY ou BT04).",
+      SecurityError:"Bluetooth refusé : la connexion doit partir d'un appui sur « Connecter ».",
+      NotSupportedError:"Service UART introuvable. Vérifiez les UUID dans l'onglet Brut.",
+      NetworkError:"Lien perdu avec la trottinette.",
+      AbortError:"Opération annulée."
+    }[e.name]||("Erreur Bluetooth : "+(e.message||e.name));
+    toast(m,true,4200);
+  },
+
+  setState(s){this.state=s;UI.dirtyTop=true;UI.refreshTop()}
+};
+
+/* ================================================================
+   WAKE LOCK — garder l'écran allumé (si supporté)
+   ================================================================ */
+const Wake={
+  lock:null,
+  async acquire(){
+    if(!Settings.get("wakeLock"))return;
+    try{if("wakeLock" in navigator&&!this.lock){this.lock=await navigator.wakeLock.request("screen");this.lock.addEventListener("release",()=>{this.lock=null})}}catch(e){}
+  },
+  release(){try{if(this.lock){this.lock.release();this.lock=null}}catch(e){this.lock=null}}
+};
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&(Ble.state==="connected"||Demo.active))Wake.acquire()});
+
+/* ================================================================
+   PIPELINE commun BLE / Démo
+   ================================================================ */
+function ingestBytes(bytes){
+  for(const fr of Parser.ingest(bytes)){
+    if(fr.bad){Raw.push(fr.raw,false);continue}
+    Raw.push(fr,true,"RX");
+    Store.lastFrameAt=now();
+    if(fr[0]===0x55){Decoder.decode(fr);postDecode()}
+  }
+}
+
+/* ================================================================
+   MODE DÉMO — génère des trames réalistes avec CRC correct.
+   Scénario : accélérations / croisière / freinages régénératifs.
+   ================================================================ */
+const Demo={
+  active:false,timer:null,startT:0,
+  st:{spd:0,target:0,amp:0,soc:84,trip:12.4,odo:1287,gear:3,tF:41,tR:44,tb:31,phase:0},
+  buildFrame(id,payload){
+    const b=[0x55,id,...payload];
+    while(b.length<19)b.push(0);
+    b.push(crc8(b,19));
+    return new Uint8Array(b);
+  },
+  bytes(...vals){return vals},
+  toggle(){this.active?this.stop():this.start()},
+  start(){
+    if(Ble.state==="connected"||Ble.state==="connecting")Ble.disconnect(true);
+    this.active=true;this.startT=Date.now();this.st.soc=84;this.st.trip=12.4;
+    Store.connActive=true;
+    UI.setDemoUI(true);UI.dirtyTop=true;
+    Wake.acquire();
+    let tick=0,once=false;
+    this.timer=setInterval(()=>{
+      this.step(0.12);tick++;
+      const frames=[];
+      if(!once){ // identité + versions envoyées une fois, comme au boot
+        once=true;
+        const asc=s=>s.split("").map(c=>c.charCodeAt(0));
+        frames.push(this.buildFrame(0x41,asc("52FMQ13B2407X")));       // série batterie (15 car.)
+        frames.push(this.buildFrame(0x42,asc("FMQ24A001234DEMO")));    // cadre
+        frames.push(this.buildFrame(0x43,[1,4,2,0,2,0,1,0,0,0,0,0,0,0,0,0,0]));
+        frames.push(this.buildFrame(0x44,[3,1,0,0,1,0,9,0,2,2,7,0,0,0,0,0,0]));
+        frames.push(this.buildFrame(0x45,[5,3,8,0,5,3,8,0,0,0,0,0,0,0,0,0,0]));
+      }
+      const s=this.st;
+      if(tick%2===0){ // 55 52 batterie (~t/240 ms)
+        const volt=44+s.soc*0.145,pole=+(volt-0.4).toFixed(1),rawI=Math.round((s.amp+1000)*10);
+        frames.push(this.buildFrame(0x52,this.bytes(
+          Math.round(volt*10)>>8,Math.round(volt*10)&255,
+          Math.round(pole*10)>>8,Math.round(pole*10)&255,
+          rawI>>8,rawI&255,
+          Math.round(s.soc),98,
+          s.tb+40,s.tb+1+40,s.tb-1+40,s.tb+2+40,0,0xFF,s.tb+40,   // sondes 5/6 absentes -> n/d
+          s.tb+3+40,s.tb-2+40)));
+      }
+      if(tick%2===1){ // 55 72 moteur
+        const sr=s.spd>0.5?Math.round(2870/Math.max(s.spd,0.6)):4095; // 287 × 10" / vitesse
+        const cF=Math.round(Math.max(s.amp,0)*10),cR=Math.round(Math.max(s.amp,0)*11);
+        frames.push(this.buildFrame(0x72,this.bytes(
+          0,0, cF>>8,cF&255, 0,0,0, Math.round(s.tF),
+          0,0x10, cR>>8,cR&255, 0,
+          sr>>8,sr&255, Math.round(s.tR), 0)));
+      }
+      if(tick%8===0){ // 55 71 contrôle (t[2]=4 inoffensif : octet non documenté)
+        frames.push(this.buildFrame(0x71,this.bytes(
+          4,s.gear, 0b00000110, 15, 100, 105, 0x21, 0x32,
+          45, 70, 30, 35, 0, 52, 0x00, 0b00000001, 0b00001010)));
+      }
+      if(tick%17===0){ // 55 53 BMS
+        frames.push(this.buildFrame(0x53,this.bytes(
+          1,1,0, 1,1, 0x00, 1300>>8,1300&255, 0,0, 42>>8,42&255, 14, 3650>>8,3650&255, 3641>>8,3641&255)));
+      }
+      if(tick%19===0){ // 55 54 défauts (tous OK ; t[17]=état charge 0)
+        frames.push(this.buildFrame(0x54,new Array(17).fill(0)));
+      }
+      if(tick%8===4){ // 55 73 trajet
+        const regenCr=Math.round(Session.regenWh*10)+3210;
+        frames.push(this.buildFrame(0x73,this.bytes(
+          Math.round(21.3*10)>>8,213&255, Math.round(46.8*10)>>8,468&255,
+          Math.round(s.trip*10)>>8,Math.round(s.trip*10)&255,
+          Math.round(s.odo)>>16&255,Math.round(s.odo)>>8&255,Math.round(s.odo)&255,
+          regenCr>>8,regenCr&255, 0,0,0, 0x00, 2, 0x00)));
+      }
+      // simuler le chunking BLE : concaténer toutes les trames en une seule "notification"
+      const total=frames.reduce((a,f)=>a+f.length,0);
+      const blob=new Uint8Array(total);let o=0;
+      for(const f of frames){blob.set(f,o);o+=f.length}
+      ingestBytes(blob);
+    },120);
+    toast("Mode démo : trames simulées (CRC valides)");
+  },
+  stop(){
+    this.active=false;clearInterval(this.timer);
+    Store.connActive=false;
+    Wake.release();
+    UI.setDemoUI(false);UI.dirtyTop=true;
+    toast("Démo arrêtée");
+  },
+  step(dt){
+    const s=this.st,T=(Date.now()-this.startT)/1000;
+    // scénario de roulage en 5 phases de 12 s
+    const ph=Math.floor(T/12)%5;
+    s.target=[0,26,38,17,32][ph];
+    const accel=(s.target-s.spd)*0.9;
+    s.amp+= (clamp(accel*1.4, -24, 28) - s.amp)*0.18;
+    s.spd=Math.max(0,s.spd + s.amp*0.16*(s.amp>0?1:0.75)*dt*6);
+    if(s.target===0&&s.spd<2)s.spd=Math.max(0,s.spd-dt*8);
+    s.trip+=s.spd*dt/3600;s.odo+=s.spd*dt/3600;s.soc=Math.max(5,s.soc-Math.abs(s.amp)*dt*0.004);
+    s.tF+=((30+Math.abs(s.amp)*1.1-s.tF))*0.02;s.tR+=((32+Math.abs(s.amp)*1.3-s.tR))*0.02;
+    if(Math.random()<0.02)s.gear=1+Math.floor(Math.random()*3);
+  }
+};
+
+/* ================================================================
+   SESSION (compteurs dérivés, intégrales) + ENREGISTREUR
+   ================================================================ */
+const Session={
+  start:Date.now(),regenWh:0,usedWh:0,distKm:0,lastTick:null,
+  reset(){this.start=Date.now();this.regenWh=0;this.usedWh=0;this.distKm=0;this.lastTick=null},
+  tick(){
+    const t=now();
+    if(this.lastTick===null){this.lastTick=t;return}
+    const dt=(t-this.lastTick)/1000;this.lastTick=t;
+    if(dt<=0||dt>3||!Store.connActive)return;
+    const amp=Store.get("amp_pack"),volt=Store.get("volt_pack"),spd=Store.get("speed_kmh");
+    if(isNum(amp)&&isNum(volt)){
+      if(amp<0)this.regenWh+=(-amp)*volt*dt/3600;
+      else this.usedWh+=amp*volt*dt/3600;
+    }
+    if(isNum(spd)&&spd>0)this.distKm+=spd*dt/3600;
+  },
+  whkm(){return this.distKm>0.05?this.usedWh/this.distKm:null}
+};
+
+const Recorder={
+  on:false,session:null,timer:null,flushN:0,
+  async start(){
+    if(this.on)return;
+    const iv=parseInt(Settings.get("recInterval"),10)||1000;
+    this.session={startedAt:Date.now(),endedAt:null,rows:[],count:0,keys:CATALOG.map(c=>c.k)};
+    if(DB.mode!=="none"){
+      try{this.session.id=await DB.addSession(this.session)}catch(e){console.warn(e)}
+    }
+    this.on=true;
+    this.timer=setInterval(()=>this.sample(),iv);
+    this.sample();
+    UI.recUI();
+    toast("Enregistrement démarré (1 valeur / "+(iv/1000)+" s)");
+  },
+  sample(){
+    if(!this.session)return;
+    const row={t:Date.now()};
+    for(const c of CATALOG){
+      const v=Store.get(c.k);
+      row[c.k]=Store.fresh(c.k)?v:null;   // valeur périmée -> null
+    }
+    v: { // champs dérivés session
+      row._regenWh=+Session.regenWh.toFixed(3);
+      row._distKm=+Session.distKm.toFixed(4);
+    }
+    this.session.rows.push(row);this.session.count++;
+    if(++this.flushN>=10){this.flushN=0;this.flush()}
+    UI.dirtyRec=true;
+  },
+  async flush(){try{if(this.session&&this.session.id!=null)await DB.putSession(this.session)}catch(e){console.warn("flush:",e)}},
+  async stop(){
+    if(!this.on)return;
+    this.on=false;clearInterval(this.timer);
+    this.session.endedAt=Date.now();
+    await this.flush();
+    toast("Session sauvegardée ("+this.session.count+" échantillons)");
+    this.session=null;
+    UI.recUI();UI.renderSessions();
+  }
+};
+
+/* export fichier : Web Share si possible, sinon téléchargement Blob */
+async function exportFile(name,mime,content){
+  const blob=content instanceof Blob?content:new Blob([content],{type:mime});
+  try{
+    const file=new File([blob],name,{type:mime});   // Web Share niveau 2 si dispo
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:name});return true;
+    }
+  }catch(e){if(e&&e.name==="AbortError")return false/* sinon repli téléchargement */}
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download=name;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  return true;
+}
+function csvEscape(v){const s=String(v);return /[",;\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
+function sessionCSV(s){
+  const keys=CATALOG.map(c=>c.k).concat(["_regenWh","_distKm"]);
+  const head=["t_ms","iso",...keys];
+  const lines=[head.join(";")];
+  for(const r of s.rows){
+    lines.push([r.t,new Date(r.t).toISOString(),...keys.map(k=>{const v=r[k];return v==null?"":csvEscape(Array.isArray(v)?v.join("/"):v)})].join(";"));
+  }
+  return lines.join("\n");
+}
+const fnameDate=d=>{const p=n=>String(n).padStart(2,"0");return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())};
+
+/* ================================================================
+   SETTINGS — valeurs par défaut + persistance
+   ================================================================ */
+const Settings={
+  defs:{unit:"kmh",theme:"dark",recInterval:1000,alertTBatt:60,alertTMot:110,alertSoc:15,vibrate:true,wakeLock:true},
+  cache:{},
+  async load(){for(const k in this.defs)this.cache[k]=await DB.getSetting(k,this.defs[k]);this.applyTheme()},
+  get(k){return k in this.cache?this.cache[k]:this.defs[k]},
+  set(k,v){this.cache[k]=v;DB.setSetting(k,v);if(k==="theme")this.applyTheme()},
+  applyTheme(){document.documentElement.dataset.theme=this.get("theme")==="light"?"light":"dark";
+    const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=this.get("theme")==="light"?"#eef1f6":"#05070c"}
+};
+
+/* patch post-décodage : exposer les nibbles comme clés individuelles */
+function postDecode(){
+  const e=Store.get("eabs_lvl");if(Array.isArray(e)){Store.set("eabs_h",e[0]);Store.set("eabs_l",e[1])}
+  const s=Store.get("start_lvl");if(Array.isArray(s)){Store.set("start_lvl_h",s[0]);Store.set("start_lvl_l",s[1])}
+}
+
+/* ================================================================
+   FORMATAGE des valeurs (gère unités + conversions mph)
+   ================================================================ */
+const DEC_UNIT={V:1,A:1,W:0,"%":0,"°C":0,mV:0,Ah:2,in:1,min:0,"?":1};
+function fmtVal(c){
+  const v=Store.get(c.k);
+  const stale=!Store.fresh(c.k);
+  if(v==null)return{txt:"—",unit:c.unit||"",stale,num:null};
+  const u=Settings.get("unit");
+  if(Array.isArray(v))return{txt:v.join(" / "),unit:"",stale,num:null};
+  if(!isNum(v))return{txt:String(v),unit:c.unit||"",stale,num:null};
+  if(c.unit==="km/h")return{txt:fmtSpd(v,u,v<10?1:0),unit:u==="mph"?"mph":"km/h",stale,num:v};
+  if(c.unit==="km")return{txt:fmtDist(v,u),unit:u==="mph"?"mi":"km",stale,num:v};
+  const d=c.unit in DEC_UNIT?DEC_UNIT[c.unit]:0;
+  return{txt:v.toFixed(d),unit:c.unit||"",stale,num:v};
+}
+function setTile(id,key){ // met à jour une tuile issue du catalogue (sans réécrire le DOM si identique)
+  const el=document.getElementById(id);if(!el)return;
+  const c=CATALOG.find(x=>x.k===key);if(!c)return;
+  const f=fmtVal(c);
+  const html=f.txt+(f.unit?`<small>${f.unit}</small>`:"");
+  if(el._h!==html){el.innerHTML=html;el._h=html}
+  el.parentElement.classList.toggle("stale",f.stale&&f.txt==="—");
+  return f;
+}
+const freshV=k=>Store.fresh(k)?Store.get(k):null;
+
+/* ================================================================
+   UI — navigation, pages, rendu batché par requestAnimationFrame
+   ================================================================ */
+const TABS=[
+  ["live","gauge","Live"],["tout","list","Tout"],["energie","zap","Énergie"],
+  ["temp","thermo","Temp."],["batt","batt","Batterie"],["defauts","flag","Défauts"],
+  ["trajet","route","Trajet"],["rec","dot","Rec"],["brut","hex","Brut"],
+  ["infos","info","Infos"],["regl","sliders","Régl."]
+];
+
+const UI={
+  active:"live",built:{},els:{},dirtyTop:true,dirtyRaw:true,dirtyRec:true,
+  gaugeMax:60,speedSm:0,lastSample:0,lastTempSample:0,lastDraw:0,alertKeys:new Set(),lastVib:0,
+
+  init(){
+    // barre d'onglets
+    $("#tabscroll").innerHTML=TABS.map(([id,i,l])=>
+      `<button class="tab" data-p="${id}">${ic(i)}<span>${l}</span><span class="bdg" id="bdg-${id}"></span></button>`).join("");
+    $$("#tabscroll .tab").forEach(b=>b.addEventListener("click",()=>this.show(b.dataset.p)));
+    // actions haut
+    $("#btnConnect").addEventListener("click",()=>{
+      if(Demo.active){Demo.stop()}
+      if(Ble.state==="connected"||Ble.state==="connecting"||Ble.state==="reconnecting")Ble.disconnect(true);
+      else Ble.connect();
+    });
+    $("#btnDemo").addEventListener("click",()=>Demo.toggle());
+    $("#btnReconnect").addEventListener("click",()=>{if(Demo.active)Demo.stop();Ble.reconnect()});
+    // brut
+    $("#rawPause").addEventListener("click",e=>{Raw.paused=!Raw.paused;e.target.textContent=Raw.paused?"Reprendre":"Pause"});
+    $("#rawClear").addEventListener("click",()=>Raw.clear());
+    $("#rawExport").addEventListener("click",()=>{
+      const lines=["# MiniQ Dash — log brut "+new Date().toLocaleString("fr-FR")];
+      for(const l of Raw.log)lines.push(`${new Date(l.t).toISOString()} ${l.dir} ${l.hex}${l.ok?"":"  [CRC FAUX]"}`);
+      exportFile("miniq_log_"+fnameDate(new Date())+".txt","text/plain",lines.join("\n"));
+    });
+    // rec
+    $("#recStart").addEventListener("click",()=>Recorder.start());
+    $("#recStop").addEventListener("click",()=>Recorder.stop());
+    $("#recWipe").addEventListener("click",async()=>{if(confirm("Supprimer toutes les sessions enregistrées ?")){await DB.clearSessions();this.renderSessions()}});
+    $("#toutSearch").addEventListener("input",()=>this.filterTout());
+    $("#wipeAll").addEventListener("click",async()=>{
+      if(!confirm("Réinitialiser réglages ET effacer toutes les données ?"))return;
+      try{if(DB.mode==="idb"){await DB._tx("settings","readwrite",s=>s.clear());await DB.clearSessions()}if(window.localStorage){Object.keys(localStorage).filter(k=>k.startsWith("mqs:")).forEach(k=>localStorage.removeItem(k))}}catch(e){}
+      location.reload();
+    });
+    window.addEventListener("resize",()=>{this.lastDraw=0});
+    this.show("live");
+    requestAnimationFrame(t=>this.loop(t));
+  },
+
+  show(id){
+    this.active=id;
+    $$(".page").forEach(p=>p.classList.toggle("active",p.id==="p-"+id));
+    $$("#tabscroll .tab").forEach(b=>b.classList.toggle("active",b.dataset.p===id));
+    window.scrollTo(0,0);
+    if(!this.built[id]){this["build_"+id]&&this["build_"+id]();this.built[id]=true}
+    this.lastDraw=0; // forcer redraw canvas
+  },
+
+  /* ---------- boucle rAF (rendu batché, 60 fps côté DOM) ---------- */
+  loop(t){
+    Session.tick();Raw.tick();
+    // échantillons graphes (10 Hz énergie, 0,5 Hz températures)
+    if(Store.connActive){
+      if(t-this.lastSample>100){this.lastSample=t;const a=freshV("amp_pack");if(isNum(a))ENERGY.push(t,a)}
+      if(t-this.lastTempSample>2000){this.lastTempSample=t;
+        TEMP_H.batt.push(t,freshV("batt_tmax"));TEMP_H.f.push(t,freshV("motor_t_f"));TEMP_H.r.push(t,freshV("motor_t_r"))}
+    }
+    // lissage vitesse
+    const target=isNum(freshV("speed_kmh"))?freshV("speed_kmh"):0;
+    this.speedSm+= (target-this.speedSm)*0.18;
+    if(this.dirtyTop)this.refreshTop();
+    const r=this["r_"+this.active];if(r)r.call(this,t);
+    this.evalAlerts(t);
+    requestAnimationFrame(tt=>this.loop(tt));
+  },
+
+  /* ---------- barre supérieure ---------- */
+  refreshTop(){
+    this.dirtyTop=false;
+    const pill=$("#connPill"),txt=$("#connText"),rssi=$("#rssi"),btn=$("#btnConnect"),rec=$("#btnReconnect");
+    pill.className="pill";let label="Déconnecté";
+    if(Demo.active){pill.classList.add("demo");label="Démo — simulation"}
+    else switch(Ble.state){
+      case "connected":pill.classList.add("on");label=Ble.device&&Ble.device.name?Ble.device.name:"Connecté";break;
+      case "connecting":pill.classList.add("busy");label="Connexion…";break;
+      case "reconnecting":pill.classList.add("busy");label="Reconnexion…";break;
+      case "scanning":pill.classList.add("busy");label="Sélection…";break;
+    }
+    txt.textContent=label;
+    rssi.textContent=(Ble.state==="connected"&&!Demo.active)?("RSSI "+(isNum(Ble.rssi)?Ble.rssi+" dBm":"n/d")):"";
+    btn.textContent=(Ble.state==="connected"||Ble.state==="connecting"||Ble.state==="reconnecting")?"Couper":"Connecter";
+    rec.style.display=(!Demo.active&&Ble.device&&(Ble.state==="off"||Ble.state==="reconnecting"))?"":"none";
+    $("#btnDemo").classList.toggle("danger",Demo.active);
+    $("#btnDemo").classList.toggle("ghost",!Demo.active);
+    $("#btnDemo").textContent=Demo.active?"Stop":"Démo";
+  },
+  setDemoUI(on){this.refreshTop()},
+
+  /* ---------- alertes (visuel + vibration si dispo) ---------- */
+  evalAlerts(t){
+    if(t-(this._alT||0)<500)return;this._alT=t;
+    const msgs=[];
+    const tb=freshV("batt_tmax");if(isNum(tb)&&tb>=Settings.get("alertTBatt"))msgs.push(`Batterie chaude : ${tb}°C`);
+    const tf=freshV("motor_t_f"),tr=freshV("motor_t_r");const tm=Math.max(isNum(tf)?tf:-99,isNum(tr)?tr:-99);
+    if(tm>=Settings.get("alertTMot"))msgs.push(`Moteur chaud : ${tm}°C`);
+    const soc=freshV("soc");if(isNum(soc)&&soc<=Settings.get("alertSoc"))msgs.push(`Batterie faible : ${soc} %`);
+    const nf=freshV("fault_count");if(isNum(nf)&&nf>0)msgs.push(`${nf} défaut${nf>1?"s":""} actif${nf>1?"s":""}`);
+    const bar=$("#alertBar"),key=msgs.join("|");
+    if(msgs.length){
+      bar.innerHTML=ic("warn","ic sm")+"<span>"+msgs.join(" · ")+"</span>";bar.classList.add("show");
+      if(key!==this._alKey&&Settings.get("vibrate")&&navigator.vibrate&&t-this.lastVib>8000){try{navigator.vibrate([120,60,120])}catch(e){}this.lastVib=t}
+    }else bar.classList.remove("show");
+    this._alKey=key;
+    const bdg=$("#bdg-defauts");if(bdg){bdg.textContent=nf||"";bdg.classList.toggle("show",!!(isNum(nf)&&nf>0))}
+  },
+
+  /* ================= PAGE LIVE ================= */
+  build_live(){},
+  r_live(t){
+    const u=Settings.get("unit"),sm=this.speedSm;
+    const arc=$("#gaugeArc"),disp=u==="mph"?{v:sm*KM2MI,max:40}:{v:sm,max:this.gaugeMax};
+    const pct=clamp(disp.v/disp.max,0,1)*75;
+    arc.style.strokeDasharray=pct.toFixed(2)+" 100";
+    const spdEl=$("#lvSpeed");
+    const sTxt=isNum(freshV("speed_kmh"))?disp.v.toFixed(disp.v<10?1:0):"—";
+    if(spdEl.textContent!==sTxt)spdEl.textContent=sTxt;
+    $("#lvUnit").textContent=u==="mph"?"mph":"km/h";
+    $("#gaugeMax").textContent=disp.max;
+    const amp=freshV("amp_pack"),regen=isNum(amp)&&amp<-0.3;
+    $("#gaugeSvg").classList.toggle("regen",regen);
+    $("#lvRegen").classList.toggle("show",regen);
+    setTile("lvSoc","soc");setTile("lvVolt","volt_pack");setTile("lvPow","power_w");
+    const a=setTile("lvAmp","amp_pack");
+    if(a)$("#lvAmp").className="t-val num "+(!a.num?"":a.num<-0.3?"ok":a.num>0.5?"bad":"");
+    setTile("lvGear","gear");setTile("lvTBatt","batt_tmax");setTile("lvTMotF","motor_t_f");setTile("lvTMotR","motor_t_r");
+    const e=Store.get("eabs_lvl");
+    $("#lvEabs").textContent=(Array.isArray(e)&&Store.fresh("eabs_lvl"))?e.join(" / "):"—";
+    const rev=freshV("sys_reverse"),eco=freshV("sys_eco"),at=freshV("sys_atmode");
+    $("#lvMode").textContent=rev?"MAR":eco?"Éco":at?"AT":(Store.fresh("sys_eco")?"Std":"—");
+  },
+
+  /* ================= PAGE TOUT ================= */
+  build_tout(){
+    const wrap=$("#toutList");this.toutRows={};
+    let html="",cur=null;
+    for(const c of CATALOG){
+      if(c.cat!==cur){cur=c.cat;html+=`<div class="cat-h">${CATS[cur]||cur}</div>`}
+      html+=`<div class="vrow" data-k="${c.k}" data-l="${c.label.toLowerCase()}">
+        <div class="v-lab">${c.label}</div>
+        <div class="v-val" id="tv-${c.k}">—</div>
+        <div class="v-unit" id="tu-${c.k}">${c.unit||""}</div>
+        <button class="qbtn" data-h="${c.k}">?</button></div>
+        <div class="vhelp" id="th-${c.k}">${c.help}</div>`;
+    }
+    wrap.innerHTML=html;
+    wrap.addEventListener("click",e=>{
+      const b=e.target.closest(".qbtn");if(!b)return;
+      const h=$("#th-"+b.dataset.h);h.classList.toggle("open");b.classList.toggle("open");
+    });
+    for(const c of CATALOG)this.toutRows[c.k]={v:$("#tv-"+c.k),u:$("#tu-"+c.k),r:wrap.querySelector(`.vrow[data-k="${c.k}"]`)};
+  },
+  r_tout(t){
+    if(t-(this._tt||0)<200)return;this._tt=t;
+    for(const c of CATALOG){
+      const f=fmtVal(c),row=this.toutRows[c.k];
+      if(row.v.textContent!==f.txt)row.v.textContent=f.txt;
+      if(row.u.textContent!==f.unit)row.u.textContent=f.unit;
+      row.r.classList.toggle("stale",f.stale&&f.txt!=="—"||(f.txt==="—"&&Store.entry(c.k)));
+    }
+  },
+  filterTout(){
+    const q=$("#toutSearch").value.trim().toLowerCase();
+    $$("#toutList .vrow").forEach(r=>r.style.display=(!q||r.dataset.l.includes(q))?"":"none");
+    $$("#toutList .cat-h").forEach(h=>{
+      let n=h.nextElementSibling,vis=false;
+      while(n&&!n.classList.contains("cat-h")){if(n.classList.contains("vrow")&&n.style.display!=="none")vis=true;n=n.nextElementSibling}
+      h.style.display=vis||!q?"":"none";
+    });
+  },
+
+  /* ================= PAGE ÉNERGIE ================= */
+  build_energie(){},
+  r_energie(t){
+    if(t-this.lastDraw>100){
+      this.lastDraw=t;drawEnergy($("#chEnergy"));
+      const amp=freshV("amp_pack"),pow=freshV("power_w");
+      $("#enAmp").textContent=isNum(amp)?amp.toFixed(1)+" A":"—";
+      $("#enAmp").style.color=!isNum(amp)?"var(--txt)":amp<-0.3?"var(--ok)":amp>0.5?"var(--bad)":"var(--txt)";
+      const st=$("#enState");
+      st.textContent=!isNum(amp)?"—":amp<-0.3?"RÉGÉNÉRATION":amp>0.5?"DÉCHARGE":"NEUTRE";
+      st.className="chip "+(!isNum(amp)?"":amp<-0.3?"on":amp>0.5?"bad":"");
+      $("#enPow").textContent=isNum(pow)?Math.round(pow)+" W":"—";
+      $("#enRegenWh").textContent=Session.regenWh.toFixed(1)+" Wh";
+      setTile("enCumul","regen_cumul");setTile("enEabs","eabs_h");
+      const e=Store.get("eabs_lvl");
+      $("#enEabs").textContent=(Array.isArray(e)&&Store.fresh("eabs_lvl"))?e.join(" / "):"—";
+      const wk=Session.whkm();
+      $("#enWhKm").textContent=isNum(wk)?wk.toFixed(1)+" Wh/km":"—";
+    }
+  },
+
+  /* ================= PAGE TEMPÉRATURES ================= */
+  build_temp(){
+    const tb=$("#tempBatt");let h="";
+    for(let i=1;i<=7;i++)h+=this._tbar("Batt. "+i,"batt_t"+i,"°C",80);
+    tb.innerHTML=h;
+    $("#tempMot").innerHTML=this._tbar("Moteur AV","motor_t_f","°C",140)+this._tbar("Moteur AR","motor_t_r","°C",140);
+  },
+  _tbar(name,key,unit,max){return `<div class="tbar-row" id="tbr-${key}"><span class="n">${name}</span><div class="tbar"><i id="tbi-${key}"></i></div><span class="v num" id="tbv-${key}">—</span></div>`},
+  r_temp(t){
+    if(t-(this._tp||0)<400)return;this._tp=t;
+    const warn=Settings.get("alertTBatt");
+    for(let i=1;i<=7;i++)this._updBar("batt_t"+i,80,warn);
+    this._updBar("motor_t_f",140,Settings.get("alertTMot"));this._updBar("motor_t_r",140,Settings.get("alertTMot"));
+    const cm=freshV("cell_t_max"),cn=freshV("cell_t_min"),pr=freshV("prot_temp");
+    $("#tpCellMax").textContent="Cellule max : "+(isNum(cm)?cm+" °C":"n/d");
+    $("#tpCellMin").textContent="Cellule min : "+(isNum(cn)?cn+" °C":"n/d");
+    $("#tpProt").textContent="Protection : "+(isNum(pr)?pr+" °C":"n/d");
+    drawTempsChart($("#chTemp"));
+  },
+  _updBar(key,max,warn){
+    const v=freshV(key),row=$("#tbr-"+key),bar=$("#tbi-"+key),val=$("#tbv-"+key);
+    if(!row)return;
+    if(!isNum(v)){val.textContent=Store.entry(key)?"n/d":"—";bar.style.width="0%";row.classList.toggle("stale",!!Store.entry(key));return}
+    row.classList.remove("stale");
+    val.textContent=v.toFixed(0)+" °C";
+    bar.style.width=clamp(v/max*100,0,100)+"%";
+    bar.style.background=v>=warn?"var(--bad)":v>=warn*0.8?"var(--warn)":v>=45?"var(--acc2)":"var(--acc)";
+  },
+
+  /* ================= PAGE BATTERIE ================= */
+  build_batt(){
+    $("#battTiles").innerHTML=["soc","soh","cap_ah","cycles","cell_count","cell_mv_max","cell_mv_min","cell_delta"]
+      .map(k=>{const c=CATALOG.find(x=>x.k===k);return `<div class="tile"><span class="t-lab">${c.label}</span><span class="t-val num" id="bt-${k}">—</span></div>`}).join("");
+  },
+  r_batt(t){
+    if(t-(this._bt||0)<300)return;this._bt=t;
+    for(const k of["soc","soh","cap_ah","cycles","cell_count","cell_mv_max","cell_mv_min","cell_delta"]){
+      const c=CATALOG.find(x=>x.k===k),f=fmtVal(c),el=$("#bt-"+k);
+      el.innerHTML=f.txt+(f.unit?`<small>${f.unit}</small>`:"");
+    }
+    $("#bRelay").textContent=Store.fresh("bms_relay")?Store.get("bms_relay"):"—";
+    const mc=freshV("mos_charge"),md=freshV("mos_discharge");
+    $("#bMosC").textContent=isNum(mc)?(mc?"ouverte (charge OK)":"bloquée"):"—";
+    $("#bMosC").style.color=isNum(mc)?(mc?"var(--ok)":"var(--bad)"):"";
+    $("#bMosD").textContent=isNum(md)?(md?"ouverte (sortie OK)":"bloquée"):"—";
+    $("#bMosD").style.color=isNum(md)?(md?"var(--ok)":"var(--bad)"):"";
+    const bal=freshV("balancing"),nc=freshV("cell_count");
+    if(isNum(bal)){
+      const cells=[];for(let i=0;i<Math.min(isNum(nc)?nc:16,16);i++)if(bit(bal,i))cells.push(i+1);
+      $("#bBal").textContent=cells.length?"cellules "+cells.join(", "):"aucun";
+    }else $("#bBal").textContent="—";
+    const cs=freshV("charge_state");
+    $("#bCharge").textContent=isNum(cs)?(cs===0?"0 — repos":"état "+cs):"—";
+    const nf=freshV("fault_count");
+    $("#bFaults").textContent=isNum(nf)?(nf===0?"aucun":nf+" actif(s) — voir onglet Défauts"):"—";
+    $("#bFaults").style.color=isNum(nf)&&nf>0?"var(--bad)":"";
+  },
+
+  /* ================= PAGE DÉFAUTS ================= */
+  build_defauts(){
+    let h="";
+    for(let i=1;i<=17;i++)
+      h+=`<div class="frow" id="fr-${i}"><span class="fid">Défaut #${i}</span><span class="sev" id="fs-${i}">${"<i></i>".repeat(5)}</span><span class="fst" id="fv-${i}">—</span></div>`;
+    $("#faultList").innerHTML=h;
+  },
+  r_defauts(t){
+    if(t-(this._df||0)<400)return;this._df=t;
+    let nAct=0;
+    for(let i=1;i<=17;i++){
+      const sev=freshV("fault_"+i),row=$("#fr-"+i),bars=$("#fs-"+i).children,txt=$("#fv-"+i);
+      if(!isNum(sev)){txt.textContent="—";row.classList.remove("act");continue}
+      if(sev>0)nAct++;
+      txt.textContent=sev>0?"ACTIF ("+sev+")":"OK";
+      row.classList.toggle("act",sev>0);
+      const lvl=clamp(sev,0,5);
+      for(let b=0;b<5;b++)bars[b].className=b<lvl?(lvl>=3?"l3":lvl===2?"l2":"l1"):"";
+    }
+    $("#dfCount").textContent=nAct===0?"0 défaut actif":nAct+" défaut"+(nAct>1?"s":"")+" actif"+(nAct>1?"s":"");
+    const chip=$("#dfChip");chip.textContent=nAct===0?"OK":"ALERTE";chip.className="chip "+(nAct===0?"on":"bad");
+    $("#dEcuF").textContent=Store.fresh("ecu_f")?"0x"+Store.get("ecu_f").toString(16).toUpperCase().padStart(4,"0"):"—";
+    $("#dEcuR").textContent=Store.fresh("ecu_r")?"0x"+Store.get("ecu_r").toString(16).toUpperCase().padStart(4,"0"):"—";
+    const setChip=(id,v)=>{const e=$(id);e.textContent=e.textContent.split(" : ")[0]+" : "+(isNum(v)?(v?"ON":"off"):"—");e.className="chip"+(isNum(v)&&v?" on":"")};
+    setChip("#dLight",freshV("light_on"));setChip("#dTurnL",freshV("turn_l"));setChip("#dTurnR",freshV("turn_r"));
+  },
+
+  /* ================= PAGE TRAJET ================= */
+  build_trajet(){
+    $("#tripTiles").innerHTML=[["spd_avg","Vitesse moyenne"],["spd_max","Vitesse max"],["trip_km","Trip"],["odo_km","Odomètre"]]
+      .map(([k,l])=>`<div class="tile"><span class="t-lab">${l}</span><span class="t-val num" id="tj-${k}">—</span></div>`).join("");
+    $("#sessTiles").innerHTML=["Durée;ts-dur","Distance;ts-dist","Énergie utilisée;ts-used","Régénérée;ts-regen"]
+      .map(s=>s.split(";")).map(([l,id])=>`<div class="tile"><span class="t-lab">${l}</span><span class="t-val num" id="${id}">—</span></div>`).join("");
+  },
+  r_trajet(t){
+    if(t-(this._tj||0)<400)return;this._tj=t;
+    const u=Settings.get("unit");
+    setTile("tj-spd_avg","spd_avg");setTile("tj-spd_max","spd_max");setTile("tj-trip_km","trip_km");setTile("tj-odo_km","odo_km");
+    $("#ts-dur").textContent=fmtDur(Date.now()-Session.start);
+    $("#ts-dist").textContent=fmtDist(Session.distKm,u)+(u==="mph"?" mi":" km");
+    $("#ts-used").textContent=Session.usedWh.toFixed(1)+" Wh";
+    $("#ts-regen").textContent=Session.regenWh.toFixed(1)+" Wh";
+  },
+
+  /* ================= PAGE ENREGISTREMENT ================= */
+  build_rec(){this.renderSessions()},
+  recUI(){
+    $("#recStart").classList.toggle("hidden",Recorder.on);
+    $("#recStop").classList.toggle("hidden",!Recorder.on);
+    $("#recBadge").classList.toggle("show",Recorder.on);
+    $("#recStatus").textContent=Recorder.on
+      ?`Enregistrement en cours — ${Recorder.session?Recorder.session.count:0} échantillons. Stockage : ${DB.mode==="idb"?"IndexedDB":DB._lsOK?"localStorage (réglages seulement ; session en mémoire)":"mémoire uniquement (exportez avant de quitter)"}.`
+      :"Toutes les valeurs sont échantillonnées dans IndexedDB (ou en mémoire si indisponible).";
+  },
+  async renderSessions(){
+    const list=$("#sessList");
+    const ss=await DB.allSessions();
+    $("#recWipe").classList.toggle("hidden",!ss.length);
+    if(!ss.length){list.innerHTML=`<div class="note">Aucune session pour le moment.</div>`;return}
+    list.innerHTML=ss.map(s=>`<div class="sess">
+      <div class="si"><b>${new Date(s.startedAt).toLocaleString("fr-FR")}</b>
+      <span>${s.count} échantillons · ${fmtDur((s.endedAt||Date.now())-s.startedAt)}</span></div>
+      <button class="iconbtn" data-csv="${s.id}" title="Exporter CSV">${ic("down","ic sm")}</button>
+      <button class="iconbtn" data-json="${s.id}" title="Exporter JSON">${ic("share","ic sm")}</button>
+      <button class="iconbtn" data-del="${s.id}" title="Supprimer">${ic("trash","ic sm")}</button>
+    </div>`).join("");
+    list.onclick=async e=>{
+      const b=e.target.closest("button");if(!b)return;
+      const id=+(b.dataset.csv||b.dataset.json||b.dataset.del);
+      const ss2=await DB.allSessions(),s=ss2.find(x=>x.id===id);if(!s)return;
+      const stamp=fnameDate(new Date(s.startedAt));
+      if(b.dataset.del){if(confirm("Supprimer cette session ?")){await DB.delSession(id);this.renderSessions()}}
+      else if(b.dataset.csv)exportFile("miniq_"+stamp+".csv","text/csv",sessionCSV(s));
+      else if(b.dataset.json)exportFile("miniq_"+stamp+".json","application/json",JSON.stringify({app:"MiniQ Dash",version:1,startedAt:s.startedAt,endedAt:s.endedAt,columns:CATALOG.map(c=>({key:c.k,label:c.label,unit:c.unit})),samples:s.rows},null,1));
+    };
+  },
+  r_rec(t){
+    if(t-(this._rc||0)<1000)return;this._rc=t;
+    if(Recorder.on){$("#recTime").textContent=fmtDur(Date.now()-Recorder.session.startedAt);this.recUI()}
+  },
+
+  /* ================= PAGE BRUT ================= */
+  build_brut(){this.buildRawTable()},
+  buildRawTable(){
+    const el=$("#rawTable");
+    if(!Raw.stats.size){el.innerHTML=`<div class="note">En attente de trames…</div>`;this.rawEls={};return}
+    const keys=Array.from(Raw.stats.keys()).sort();
+    el.innerHTML=keys.map(k=>{
+      const id=k.split(" ")[1],name=FRAME_NAMES[parseInt(id,16)]||"inconnue";
+      return `<div class="rrow" id="rr-${k.replace(" ","-")}">
+        <div class="rh"><span class="rid mono">${k}</span><span class="rname">${name==="inconnue"?"Trame inconnue (conservée brute)":name}</span><span class="rcount" id="rc-${k.replace(" ","-")}"></span></div>
+        <div class="rhex mono" id="rh-${k.replace(" ","-")}">${Array.from({length:20},(_,i)=>`<b class="${i<2?"idx":i===19?"crc":""}">··</b>`).join("")}</div>
+      </div>`}).join("");
+    this._rawKeys=keys;
+  },
+  r_brut(t){
+    if(t-(this._rb||0)<250)return;this._rb=t;
+    $("#rawRate").textContent=Raw.rate.toFixed(1)+" trame/s";
+    $("#rawCount").textContent=Raw.total+" trame"+(Raw.total>1?"s":"");
+    const crcEl=$("#rawCrcErr");crcEl.textContent=Raw.crcErr+" CRC faux";crcEl.className="chip"+(Raw.crcErr?" bad":"");
+    if(Raw.paused){return}
+    if(this.dirtyRaw){
+      this.dirtyRaw=false;
+      const keys=Array.from(Raw.stats.keys()).sort();
+      if(!this._rawKeys||keys.join()!==this._rawKeys.join())this.buildRawTable();
+      for(const k of keys){
+        const s=Raw.stats.get(k),kk=k.replace(" ","-");
+        const rc=$("#rc-"+kk),rh=$("#rh-"+kk);if(!rc)continue;
+        rc.textContent="×"+s.count+" · il y a "+((now()-s.ts)/1000).toFixed(1)+" s";
+        const cells=rh.children;
+        for(let i=0;i<20;i++){
+          const hx=hex(s.last[i]);
+          if(cells[i].textContent!==hx)cells[i].textContent=hx;
+          cells[i].classList.toggle("chg",!!(s.prev&&s.prev[i]!==s.last[i]&&i>1&&i<19));
+        }
+      }
+      // journal : dernières 25 lignes
+      const lb=$("#rawLog");
+      lb.textContent=Raw.log.slice(-25).map(l=>`${new Date(l.t).toLocaleTimeString("fr-FR")} ${l.dir} ${l.hex}${l.ok?"":"  [CRC FAUX]"}`).join("\n");
+      lb.scrollTop=lb.scrollHeight;
+    }
+  },
+
+  /* ================= PAGE INFOS ================= */
+  build_infos(){
+    $("#infoList").innerHTML=[
+      ["Nom BLE",()=>Demo.active?"Démo (simulation)":Ble.device&&Ble.device.name||"—"],
+      ["Numéro de cadre",()=>Store.fresh("serial_frame")?Store.get("serial_frame"):"—"],
+      ["Série batterie",()=>Store.fresh("serial_batt")?Store.get("serial_batt"):"—"],
+      ["Tension nominale",()=>{const v=freshV("nom_volt");return isNum(v)?v+" V":"—"}],
+      ["Nombre de cellules",()=>{const v=freshV("cell_count");return isNum(v)?v+" s":"—"}],
+      ["Taille de roue",()=>{const v=freshV("wheel_in");return isNum(v)?v.toFixed(1)+"\"":"—"}]
+    ].map(([l])=>`<div class="kv"><span class="k">${l}</span><span class="v" data-i="${l}">—</span></div>`).join("");
+    this._infoFns=Object.fromEntries([
+      ["Nom BLE",()=>Demo.active?"Démo (simulation)":(Ble.device&&Ble.device.name)||"—"],
+      ["Numéro de cadre",()=>Store.fresh("serial_frame")?Store.get("serial_frame"):"—"],
+      ["Série batterie",()=>Store.fresh("serial_batt")?Store.get("serial_batt"):"—"],
+      ["Tension nominale",()=>{const v=freshV("nom_volt");return isNum(v)?v+" V":"—"}],
+      ["Nombre de cellules",()=>{const v=freshV("cell_count");return isNum(v)?v+" s":"—"}],
+      ["Taille de roue",()=>{const v=freshV("wheel_in");return isNum(v)?v.toFixed(1)+"\"":"—"}]
+    ]);
+    $("#verList").innerHTML=[["SW","ver_sw"],["HW","ver_hw"],["Afficheur","ver_disp"],["Batterie (BMS)","ver_bms"],["LC","ver_lc"],["Contrôleur AV","ver_ctrl_f"],["Contrôleur AR","ver_ctrl_r"]]
+      .map(([l,k])=>`<div class="kv"><span class="k">${l}</span><span class="v num" id="vi-${k}">—</span></div>`).join("");
+  },
+  r_infos(t){
+    if(t-(this._in||0)<800)return;this._in=t;
+    $$("#infoList .v").forEach(el=>{const v=this._infoFns[el.dataset.i]();if(el.textContent!==v)el.textContent=v});
+    for(const k of["ver_sw","ver_hw","ver_disp","ver_bms","ver_lc","ver_ctrl_f","ver_ctrl_r"]){
+      const el=$("#vi-"+k),v=Store.fresh(k)?Store.get(k):"—";if(el.textContent!==v)el.textContent=v;
+    }
+  },
+
+  /* ================= PAGE RÉGLAGES ================= */
+  build_regl(){
+    const S=Settings;
+    const swRow=(id,title,sub,val)=>`<div class="setrow"><div class="sl"><b>${title}</b><span>${sub}</span></div><button class="switch ${val?"on":""}" id="${id}"><i></i></button></div>`;
+    $("#setList1").innerHTML=`
+      <div class="setrow"><div class="sl"><b>Unités</b><span>Vitesse et distance</span></div>
+        <select class="sel" id="sUnit"><option value="kmh">km/h · km</option><option value="mph">mph · mi</option></select></div>
+      <div class="setrow"><div class="sl"><b>Thème</b><span>Clair ou sombre</span></div>
+        <select class="sel" id="sTheme"><option value="dark">Sombre</option><option value="light">Clair</option></select></div>`;
+    $("#setList2").innerHTML=`
+      ${this._range("sTBatt","Alerte temp. batterie","Déclenche au-delà de ce seuil",40,80,S.get("alertTBatt"),"°C")}
+      ${this._range("sTMot","Alerte temp. moteur","Déclenche au-delà de ce seuil",70,140,S.get("alertTMot"),"°C")}
+      ${this._range("sSoc","Alerte batterie faible","Déclenche sous ce SOC",5,40,S.get("alertSoc"),"%")}
+      ${swRow("sVib","Vibration","Sur nouvelle alerte (si supportée par l'appareil)",S.get("vibrate"))}`;
+    $("#setList3").innerHTML=`
+      <div class="setrow"><div class="sl"><b>Échantillonnage</b><span>Intervalle d'enregistrement</span></div>
+        <select class="sel" id="sRec"><option value="500">2×/s</option><option value="1000">1×/s</option><option value="2000">1×/2 s</option><option value="5000">1×/5 s</option></select></div>
+      ${swRow("sWake","Écran toujours allumé","Wake Lock pendant la connexion (si supporté)",S.get("wakeLock"))}
+      <div class="setrow"><div class="sl"><b>Stockage</b><span id="stInfo">—</span></div></div>`;
+    $("#stInfo").textContent=DB.mode==="idb"?"IndexedDB actif (persistant)":"IndexedDB indisponible — repli localStorage/mémoire";
+    $("#sUnit").value=S.get("unit");$("#sTheme").value=S.get("theme");$("#sRec").value=String(S.get("recInterval"));
+    $("#sUnit").onchange=e=>{S.set("unit",e.target.value);this.gaugeMax=e.target.value==="mph"?40:60};
+    $("#sTheme").onchange=e=>S.set("theme",e.target.value);
+    $("#sRec").onchange=e=>S.set("recInterval",+e.target.value);
+    const rng=(id,key)=>{const r=$("#"+id),o=$("#"+id+"o");r.oninput=()=>{o.textContent=r.value+" "+(key==="alertSoc"?"%":"°C")};r.onchange=()=>S.set(key,+r.value)};
+    rng("sTBatt","alertTBatt");rng("sTMot","alertTMot");rng("sSoc","alertSoc");
+    const sw=(id,key,cb)=>{$("#"+id).onclick=e=>{e.currentTarget.classList.toggle("on");const on=e.currentTarget.classList.contains("on");S.set(key,on);cb&&cb(on)}};
+    sw("sVib","vibrate");sw("sWake","wakeLock",on=>{if(on)Wake.acquire();else Wake.release()});
+  },
+  _range(id,title,sub,min,max,val,unit){
+    return `<div class="setrow"><div class="sl"><b>${title}</b><span>${sub}</span></div>
+      <div class="rangewrap"><input type="range" id="${id}" min="${min}" max="${max}" value="${val}"><output id="${id}o">${val} ${unit}</output></div></div>`;
+  },
+  r_regl(){}
+};
+
+/* ================================================================
+   INITIALISATION
+   ================================================================ */
+(async function init(){
+  await DB.init();
+  await Settings.load();
+  UI.gaugeMax=Settings.get("unit")==="mph"?40:60;
+  UI.init();
+  // compatibilités / bonus hors ligne (facultatifs : l'app marche sans)
+  try{
+    const man={name:"MiniQ Dash",short_name:"MiniQ",display:"standalone",start_url:".",background_color:"#05070c",theme_color:"#05070c"};
+    const l=document.createElement("link");l.rel="manifest";
+    l.href="data:application/manifest+json,"+encodeURIComponent(JSON.stringify(man));
+    document.head.appendChild(l);
+  }catch(e){}
+  try{
+    if("serviceWorker" in navigator&&/^https?:/.test(location.protocol))
+      navigator.serviceWorker.register("./sw.js").catch(()=>{});
+  }catch(e){}
+  if(!Ble.supported())
+    toast("Web Bluetooth introuvable. Ouvrez ce fichier dans Bluefy (iOS) — le mode Démo fonctionne partout.",true,5000);
+  else if(DB.mode!=="idb")
+    toast("Stockage limité : IndexedDB indisponible (réglages en localStorage, sessions en mémoire).",true,4200);
+  console.log("[MiniQ Dash] prêt — storage:",DB.mode);
+})();
+</script>
+</body>
+</html>
