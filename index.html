@@ -112,15 +112,17 @@ main{position:relative;z-index:1;padding:12px 14px calc(env(safe-area-inset-bott
 .rowline{display:flex;align-items:center;justify-content:space-between;gap:10px}
 
 /* grilles de tuiles */
-.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:12px}
+/* FIX-b/c : grille 2 colonnes pour Live et Batterie afin d'éviter les coupures */
+.grid4{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:12px}
+.grid4-real{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:12px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:12px}
 .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:12px}
 .tile{
-  background:var(--card);border:1px solid var(--line);border-radius:16px;padding:11px 10px 9px;
+  background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 10px 8px;
   display:flex;flex-direction:column;gap:3px;min-width:0;transition:opacity .4s;
 }
-.tile .t-lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--mut);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile .t-val{font-size:19px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
+.tile .t-lab{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .t-val{font-size:18px;font-weight:800;letter-spacing:-.01em;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile .t-val small{font-size:11px;font-weight:600;color:var(--mut);margin-left:2px}
 .tile .t-sub{font-size:11px;color:var(--mut)}
 .tile.stale{opacity:.38}
@@ -129,13 +131,14 @@ main{position:relative;z-index:1;padding:12px 14px calc(env(safe-area-inset-bott
 .tile .t-val.warn{color:var(--warn)}.tile .t-val.acc{color:var(--acc)}
 
 /* ---------- jauge vitesse ---------- */
-.gauge-wrap{position:relative;padding:18px 16px 8px;display:flex;justify-content:center}
-.gauge{width:min(78vw,300px);height:auto;display:block;overflow:visible}
-.gauge .g-bg{fill:none;stroke:var(--card2);stroke-width:13;stroke-linecap:round}
-.gauge .g-arc{fill:none;stroke:url(#ggrad);stroke-width:13;stroke-linecap:round;transition:stroke-dasharray .12s linear}
+/* FIX-a : viewBox agrandi (220→260 de large, 155→175 de haut) pour contenir tout l'arc + les caps arrondis */
+.gauge-wrap{position:relative;padding:12px 12px 0;display:flex;justify-content:center}
+.gauge{width:min(82vw,310px);height:auto;display:block;overflow:visible}
+.gauge .g-bg{fill:none;stroke:var(--card2);stroke-width:12;stroke-linecap:round}
+.gauge .g-arc{fill:none;stroke:url(#ggrad);stroke-width:12;stroke-linecap:round;transition:stroke-dasharray .12s linear}
 .gauge.regen .g-arc{stroke:url(#ggradR)}
-.gcenter{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:52px;pointer-events:none}
-#lvSpeed{font-size:clamp(58px,19vw,84px);font-weight:800;letter-spacing:-.045em;line-height:1;
+.gcenter{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:34px;pointer-events:none}
+#lvSpeed{font-size:clamp(52px,17vw,78px);font-weight:800;letter-spacing:-.045em;line-height:1;
   background:linear-gradient(180deg,var(--txt),color-mix(in srgb,var(--txt) 55%,transparent));
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 #lvUnit{color:var(--mut);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.22em;margin-top:2px}
@@ -143,12 +146,14 @@ main{position:relative;z-index:1;padding:12px 14px calc(env(safe-area-inset-bott
   border:1px solid color-mix(in srgb,var(--ok) 45%,transparent);border-radius:999px;padding:3px 10px;
   background:color-mix(in srgb,var(--ok) 12%,transparent);opacity:0;transition:opacity .25s}
 #lvRegen.show{opacity:1}
-.gfoot{display:flex;justify-content:space-between;color:var(--dim);font-size:11px;font-weight:700;padding:0 22px;margin-top:-16px}
+.gfoot{display:flex;justify-content:space-between;color:var(--dim);font-size:11px;font-weight:700;padding:0 24px;margin-top:-6px}
 
 /* ---------- liste « Tout » ---------- */
+/* FIX-f : le champ recherche n'est pas sticky pour éviter l'accumulation de barres */
 .search{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line);
   border-radius:14px;padding:10px 13px;margin-bottom:12px}
 .search input{flex:1;background:none;border:none;outline:none;font-size:15px;color:var(--txt)}
+/* FIX-e : onglet actif scrollé en vue */
 .cat-h{font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);font-weight:800;margin:18px 2px 8px}
 .vrow{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:13px;border:1px solid transparent;transition:opacity .4s}
 .vrow:nth-child(odd){background:var(--card)}
@@ -288,7 +293,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
   <!-- ============ PAGE LIVE ============ -->
   <section class="page" id="p-live">
     <div class="card gauge-wrap">
-      <svg class="gauge" id="gaugeSvg" viewBox="0 0 220 150">
+      <!-- FIX-2 : Jauge recalibrée r=80 cx=130 cy=100 viewBox 0 0 260 175 pour éviter les débordements -->
+      <svg class="gauge" id="gaugeSvg" viewBox="0 0 260 175">
         <defs>
           <linearGradient id="ggrad" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stop-color="#58a6ff"/><stop offset="100%" stop-color="#7ce7c4"/>
@@ -297,8 +303,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
             <stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#a7f3d0"/>
           </linearGradient>
         </defs>
-        <circle class="g-bg" cx="110" cy="118" r="92" pathLength="100" transform="rotate(135 110 118)" stroke-dasharray="75 100"/>
-        <circle class="g-arc" id="gaugeArc" cx="110" cy="118" r="92" pathLength="100" transform="rotate(135 110 118)" stroke-dasharray="0 100"/>
+        <circle class="g-bg" cx="130" cy="100" r="80" pathLength="100" transform="rotate(135 130 100)" stroke-dasharray="75 100"/>
+        <circle class="g-arc" id="gaugeArc" cx="130" cy="100" r="80" pathLength="100" transform="rotate(135 130 100)" stroke-dasharray="0 100"/>
       </svg>
       <div class="gcenter">
         <div id="lvSpeed" class="num">—</div>
@@ -332,31 +338,32 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 
   <!-- ============ PAGE ÉNERGIE ============ -->
   <section class="page" id="p-energie">
+    <!-- FIX-d : mise en page flex-wrap, police réduite, nowrap sur les valeurs -->
     <div class="card tight">
-      <div class="rowline">
-        <div>
-          <div class="t-lab" style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--mut);font-weight:700">Courant de régénération</div>
-          <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px">
-            <span class="num" id="enAmp" style="font-size:40px;font-weight:800;letter-spacing:-.03em">—</span>
-            <span id="enState" class="chip">—</span>
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px;justify-content:space-between">
+        <div style="min-width:0">
+          <div class="t-lab" style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--mut);font-weight:700">Courant ≈ moteurs</div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px;flex-wrap:wrap">
+            <span class="num" id="enAmp" style="font-size:32px;font-weight:800;letter-spacing:-.03em;white-space:nowrap">—</span>
+            <span id="enState" class="chip" style="white-space:nowrap">—</span>
           </div>
         </div>
-        <div style="text-align:right">
-          <div class="t-lab" style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--mut);font-weight:700">Puissance inst.</div>
-          <div class="num" id="enPow" style="font-size:26px;font-weight:800">—</div>
+        <div style="text-align:right;min-width:0">
+          <div class="t-lab" style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--mut);font-weight:700">Puissance est.</div>
+          <div class="num" id="enPow" style="font-size:22px;font-weight:800;white-space:nowrap">—</div>
         </div>
       </div>
     </div>
     <div class="card">
-      <h3>Courant pack — 60 s</h3>
+      <h3>Courant ≈ moteurs — 60 s</h3>
       <canvas class="chart" id="chEnergy"></canvas>
-      <div class="legend"><span><i style="background:var(--bad)"></i>Décharge</span><span><i style="background:var(--ok)"></i>Régénération</span></div>
+      <div class="legend"><span><i style="background:var(--bad)"></i>Décharge</span><span><i style="background:var(--ok)"></i>Régén (à valider)</span></div>
     </div>
     <div class="grid2">
-      <div class="tile"><span class="t-lab">Régén session</span><span class="t-val num ok" id="enRegenWh">0.0</span><span class="t-sub">Wh récupérés (courant négatif × tension)</span></div>
-      <div class="tile"><span class="t-lab">Cumul trottinette</span><span class="t-val num" id="enCumul">—</span><span class="t-sub">Trame 55 73 · unité non vérifiée</span></div>
-      <div class="tile"><span class="t-lab">Niveau régén (EABS)</span><span class="t-val num" id="enEabs">—</span><span class="t-sub">Nibbles haut / bas (trame 55 71)</span></div>
-      <div class="tile"><span class="t-lab">Conso estimée</span><span class="t-val num" id="enWhKm">—</span><span class="t-sub">Wh/km sur la session</span></div>
+      <div class="tile"><span class="t-lab">Régén session (est.)</span><span class="t-val num ok" id="enRegenWh">0.0</span><span class="t-sub">Wh · courant moteur nég. × tension nom. (à valider)</span></div>
+      <div class="tile"><span class="t-lab">Cumul trottinette</span><span class="t-val num" id="enCumul">—</span><span class="t-sub">Trame 55 73 t[11..12] · unité non vérifiée</span></div>
+      <div class="tile"><span class="t-lab">Niveau régén (EABS)</span><span class="t-val num" id="enEabs">—</span><span class="t-sub">Nibbles haut / bas (55 71 t[9])</span></div>
+      <div class="tile"><span class="t-lab">Conso estimée</span><span class="t-val num" id="enWhKm">—</span><span class="t-sub">Wh/km (estimation · à valider)</span></div>
     </div>
   </section>
 
@@ -364,22 +371,23 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
   <section class="page" id="p-temp">
     <div class="card">
       <h3>Batterie — capteurs</h3>
-      <div id="tempBatt"></div>
-      <div class="chips" style="margin-top:10px">
-        <span class="chip" id="tpCellMax">Cellule max : —</span>
-        <span class="chip" id="tpCellMin">Cellule min : —</span>
-        <span class="chip" id="tpProt">Protection : —</span>
+      <!-- FIX-3 : note quand sondes indisponibles (Mini Q sans BMS UART) -->
+      <div id="tempBatt"><div class="note" id="tempBattNote" style="margin:0">Sondes batterie non transmises par la Mini Q (pas de trame 55 53 / BMS absent). Les barres s'afficheront si des valeurs distinctes apparaissent.</div></div>
+      <div class="chips" style="margin-top:10px" id="tempBattChips">
+        <span class="chip" id="tpCellMax" style="display:none">Cellule max : —</span>
+        <span class="chip" id="tpCellMin" style="display:none">Cellule min : —</span>
+        <span class="chip" id="tpProt">Protection (55 71 t[7]) : —</span>
       </div>
     </div>
     <div class="card">
-      <h3>Moteurs</h3>
+      <h3>Moteurs (55 72, °C brut)</h3>
       <div id="tempMot"></div>
     </div>
     <div class="card">
       <h3>Historique — session</h3>
       <canvas class="chart tall" id="chTemp"></canvas>
       <div class="legend">
-        <span><i style="background:#58a6ff"></i>Batt. max</span>
+        <span><i style="background:#58a6ff"></i>Batt. max (si dispo)</span>
         <span><i style="background:#f59e0b"></i>Moteur AV</span>
         <span><i style="background:#fb7185"></i>Moteur AR</span>
       </div>
@@ -388,9 +396,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 
   <!-- ============ PAGE BATTERIE ============ -->
   <section class="page" id="p-batt">
-    <div class="grid4" id="battTiles"></div>
-    <div class="card">
-      <h3>États BMS</h3>
+    <!-- FIX-c : grille 2 colonnes, tuiles BMS masquées si trame absente -->
+    <div class="grid2" id="battTiles"></div>
+    <div class="note" id="battNoBms" style="display:none">Trame 55 53 (BMS) jamais reçue — données cellules/cycles non disponibles sur la Mini Q.</div>
+    <div class="card" id="battBmsCard">
+      <h3>États BMS (trame 55 53)</h3>
       <div class="kv"><span class="k">Relais (brut)</span><span class="v mono" id="bRelay">—</span></div>
       <div class="kv"><span class="k">MOS charge</span><span class="v" id="bMosC">—</span></div>
       <div class="kv"><span class="k">MOS décharge</span><span class="v" id="bMosD">—</span></div>
@@ -403,10 +413,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
   <!-- ============ PAGE DÉFAUTS ============ -->
   <section class="page" id="p-defauts">
     <div class="card tight rowline">
-      <div><b id="dfCount">0 défaut actif</b><div style="font-size:12px;color:var(--mut)">Trame 55 54 · sévérité &gt; 0 = actif</div></div>
-      <span class="chip on" id="dfChip">OK</span>
+      <div><b id="dfCount">Défauts : —</b><div style="font-size:12px;color:var(--mut)" id="dfSub">Trame 55 54 jamais reçue sur la Mini Q</div></div>
+      <span class="chip" id="dfChip">—</span>
     </div>
-    <div class="card"><h3>Défauts par type</h3><div id="faultList"></div></div>
+    <div class="note" id="dfNoBms">Trame 55 54 (défauts) non transmise par la Mini Q. Les données de défauts seraient ici si le BMS communiquait via UART.</div>
+    <div class="card" id="dfCard" style="display:none"><h3>Défauts par type</h3><div id="faultList"></div></div>
     <div class="card">
       <h3>Contrôleurs (55 72)</h3>
       <div class="kv"><span class="k">ECU avant (brut)</span><span class="v mono" id="dEcuF">—</span></div>
@@ -602,22 +613,67 @@ const Decoder={
   decode(t){
     const id=t[1];
     switch(id){
-      /* ---------- 55 52 — BATTERIE ---------- */
+      /* ---------- 55 52 — BATTERIE (Mini Q révision complète) ----------
+         Vérifié sur logs réels T1FR106… :
+         t[2..3] = 0x0000 → tension pack ABSENTE sur Mini Q (pas de BMS UART)
+         t[4..5] = valeur interne ~12-30, suit une logique inconnue (affiché brut)
+         t[6..7] = 0x0000 → courant pack ABSENT (pas de shunt)
+         t[8]    = SOC % (ex: 0x4C=76) ← seul champ utile
+         t[9..11]= copies de t[8] (même valeur = pas SOH ni températures)
+         Règle : si t[8]==t[9]==t[10]==t[11], pas de BMS → SOH=null, sondes=null
+         Avec BMS (tension>0), la doc originale s'applique.
+         ------ */
       case 0x52:{
-        Store.set("volt_pack",u16(t,2)*0.1);        // tension pack (V)
-        Store.set("volt_pole",u16(t,4)*0.1);        // tension pôle (V)
-        Store.set("amp_pack",u16(t,6)*0.1-1000);    // courant pack (A) — NÉGATIF = régénération
-        Store.set("soc",t[8]);                      // SOC %
-        Store.set("soh",t[9]);                      // SOH %
-        let tmax=null;
-        for(let i=0;i<7;i++){                       // 7 capteurs batterie (raw-40)
-          const v=tempFromRaw(t[10+i]);
-          Store.set("batt_t"+(i+1),v);
-          if(v!==null&&(tmax===null||v>tmax))tmax=v;
+        const vp_raw=u16(t,2), ap_raw=u16(t,6);
+        const hasBms=vp_raw>0;  // Si tension présente → BMS connecté
+        // Stocker le champ brut t[4..5] toujours (FIX-7 : affiché sans unité dans Tout)
+        Store.set("raw_5253",u16(t,4));
+        if(hasBms){
+          // — modèle avec BMS complet (doc originale) —
+          Store.set("volt_pack",vp_raw*0.1);
+          Store.set("volt_pole",u16(t,4)*0.1);
+          // Courant signé 16 bits : raw*0.1 - 1000 (négatif = régén)
+          Store.set("amp_pack",(ap_raw>32767?ap_raw-65536:ap_raw)*0.1-1000);
+          Store.set("soc",t[8]);
+          // SOH et températures seulement si t[9]≠t[8] (vraies valeurs distinctes)
+          const allSame=(t[9]===t[8]&&t[10]===t[8]&&t[11]===t[8]);
+          Store.set("soh",allSame?null:t[9]);
+          let tmax=null;
+          for(let i=0;i<7;i++){
+            const raw=allSame&&i<4?null:t[10+i]; // copies SOC → null
+            const v=raw===null?null:tempFromRaw(raw);
+            Store.set("batt_t"+(i+1),v);
+            if(v!==null&&(tmax===null||v>tmax))tmax=v;
+          }
+          Store.set("batt_tmax",tmax);
+          Store.set("cell_t_max",tempFromRaw(t[17]));
+          Store.set("cell_t_min",tempFromRaw(t[18]));
+        } else {
+          // — Mini Q sans BMS UART (FIX-1,2,3) —
+          Store.set("volt_pack",null);   // FIX-2 : ABSENT → null (pas 0.0 V)
+          Store.set("volt_pole",null);
+          Store.set("amp_pack",null);    // FIX-1 : ABSENT → null (pas -1000 A)
+          const soc=t[8];
+          Store.set("soc",soc);
+          // FIX-3 : si t[8]==t[9]==t[10]==t[11] → copies SOC, pas SOH ni températures
+          const allSame=(t[9]===soc&&t[10]===soc&&t[11]===soc);
+          Store.set("soh",null);         // FIX-3 : SOH non disponible
+          // Températures batterie : null si copies du SOC, sinon tenter le décodage
+          if(allSame){
+            for(let i=1;i<=7;i++) Store.set("batt_t"+i,null);
+            Store.set("batt_tmax",null);
+            Store.set("cell_t_max",null);
+            Store.set("cell_t_min",null);
+          } else {
+            // Valeurs distinctes : des sondes réelles ont peut-être été ajoutées
+            let tmax=null;
+            for(let i=0;i<7;i++){const v=tempFromRaw(t[10+i]);Store.set("batt_t"+(i+1),v);if(v!==null&&(tmax===null||v>tmax))tmax=v}
+            Store.set("batt_tmax",tmax);
+            Store.set("cell_t_max",tempFromRaw(t[17]));
+            Store.set("cell_t_min",tempFromRaw(t[18]));
+          }
+          Store.set("ctrl_temp_raw",t[5]); // champ brut variable, signification inconnue
         }
-        Store.set("batt_tmax",tmax);                // dérivé : plus chaud des 7
-        Store.set("cell_t_max",tempFromRaw(t[17])); // temp cellule max
-        Store.set("cell_t_min",tempFromRaw(t[18])); // temp cellule min
         break;
       }
       /* ---------- 55 53 — BMS ---------- */
@@ -675,33 +731,55 @@ const Decoder={
         Store.set("pr_time",(t[18]>>3)&31);         // prTime (unité non vérifiée)
         break;
       }
-      /* ---------- 55 72 — MOTEUR ---------- */
+      /* ---------- 55 72 — MOTEUR ----------
+         Mini Q vérifié : structure symétrique AV (t[2..9]) / AR (t[10..17]).
+         Par côté : t[+0..1]=ECU, t[+2..3]=courant ×0.1 A, t[+4..5] inutilisé?,
+                    t[+6..7]=speed_raw moteur, t[+7]=temp moteur (brut, sans offset).
+         t[18]=systemStatus3.
+         La vitesse instantanée vient de 55 73 t[2..3] (plus fiable).
+         ------ */
       case 0x72:{
+        /* FIX-5 : courants moteur lus en SIGNÉ 16 bits (négatif = régén probable) */
+        const s16=(v)=>v>32767?v-65536:v;
         Store.set("ecu_f",u16(t,2));                // statuts ECU avant (brut)
-        Store.set("motor_cur_f",u16(t,4)*0.1);      // courant moteur avant (A)
-        Store.set("motor_t_f",(t[9]===0||t[9]===0xFF)?null:t[9]); // temp moteur AV (brut, sans offset)
+        Store.set("motor_cur_f",s16(u16(t,4))*0.1); // courant moteur avant (A), signé
+        /* FIX-1 : speed_raw à t[7..8] (AV) et t[15..16] (AR) */
+        Store.set("speed_raw_f",u16(t,7));           // speed_raw moteur avant
+        Store.set("motor_t_f",(t[9]===0||t[9]===0xFF)?null:t[9]); // temp moteur AV (brut)
         Store.set("ecu_r",u16(t,10));               // statuts ECU arrière (brut)
         Store.set("light_on",bit(t[11],4));         // phare
         Store.set("turn_l",bit(t[11],5));           // clignotant gauche
         Store.set("turn_r",bit(t[11],6));           // clignotant droit
-        Store.set("motor_cur_r",u16(t,12)*0.1);     // courant moteur arrière (A)
-        Store.set("speed_raw",u16(t,15));           // vitesse brute
-        Store.set("motor_t_r",(t[17]===0||t[17]===0xFF)?null:t[17]); // temp moteur AR
+        Store.set("motor_cur_r",s16(u16(t,12))*0.1); // courant moteur arrière (A), signé
+        Store.set("speed_raw_r",u16(t,15));          // speed_raw moteur arrière
+        Store.set("speed_raw",u16(t,15));            // compat : vitesse brute
+        Store.set("motor_t_r",(t[17]===0||t[17]===0xFF)?null:t[17]); // temp moteur AR (brut)
         Store.set("sys_status3",t[18]);             // systemStatus3
-        // vitesse réelle : 287 × roue / speed_raw (0 si speed_raw>=3000 ou <=0.5)
+        const totalA=s16(u16(t,4))*0.1 + s16(u16(t,12))*0.1;
+        Store.set("motor_cur_total",totalA);
+        /* FIX-1 : règle raw >= 3000 -> vitesse 0 */
         const wheel=Store.get("wheel_in"), sr=u16(t,15);
         let spd=0;
-        if(isNum(wheel)&&wheel>0&&sr<3000)spd=287*wheel/sr;
-        if(spd<=0.5)spd=0;
-        Store.set("speed_kmh",isNum(wheel)?spd:null);
+        if(isNum(wheel)&&wheel>0&&sr>0&&sr<3000)spd=287*wheel/sr;
+        else spd=0; // raw >= 3000 ou invalide
+        if(!Store.fresh("speed_kmh_73")) Store.set("speed_kmh",spd);
         break;
       }
-      /* ---------- 55 73 — TRAJET ---------- */
+      /* ---------- 55 73 — TRAJET ----------
+         Mini Q vérifié : t[2..3] = vitesse instantanée ×0.1 km/h (PAS « moyenne »
+         comme la doc le dit — le champ varie en direct pendant le roulage).
+         t[4..5] = vitesse max ×0.1 km/h. t[6..7] = trip ×0.1 km.
+         t[8..10] = odomètre (3 octets, km). t[11..12] = régén cumulée (unité ?).
+         t[13] = valeur variable en roulage (0x4B..0x4D ≈ SOC ou temp ambiante).
+         ------ */
       case 0x73:{
-        Store.set("spd_avg",u16(t,2)*0.1);          // vitesse moyenne (km/h)
-        Store.set("spd_max",u16(t,4)*0.1);          // vitesse max
-        Store.set("trip_km",u16(t,6)*0.1);          // trip (km)
-        Store.set("odo_km",u24(t,8));               // odomètre (km, 3 octets)
+        const spdInst=u16(t,2)*0.1;                 // vitesse instantanée (km/h) ← vérifié Mini Q
+        Store.set("speed_kmh",spdInst);             // PRIMAIRE : vitesse réelle
+        Store.set("speed_kmh_73",spdInst);          // marqueur pour éviter l'écrasement par 55 72
+        Store.set("spd_avg",spdInst);               // compat catalogue (renommé dans l'aide)
+        Store.set("spd_max",u16(t,4)*0.1);          // vitesse max (km/h) — cohérent : 0x01E7=487→48.7
+        Store.set("trip_km",u16(t,6)*0.1);          // trip (km) — 0x0025=37→3.7 km ✓
+        Store.set("odo_km",u24(t,8));               // odomètre (km) — 0x000184=388 km ✓
         Store.set("regen_cumul",u16(t,11)*0.1);     // énergie régénérée cumulée (unité NON vérifiée)
         Store.set("trip_bits1",t[16]);              // bitfield
         Store.set("custom_btn",t[17]);              // fonction touche custom
@@ -725,9 +803,27 @@ const Decoder={
         Store.set("ver_ctrl_r",`${t[6]}.${t[7]}.${t[8]}`);
         break;
     }
-    // puissance instantanée dérivée : (ImoteurAR + ImoteurAV) × tension pack
-    const vf=Store.get("motor_cur_f"),vr=Store.get("motor_cur_r"),vp=Store.get("volt_pack");
-    if(isNum(vf)&&isNum(vr)&&isNum(vp))Store.set("power_w",(vf+vr)*vp);
+    /* FIX-2,5 : tension et courant dérivés pour puissance estimée
+       - Tension : préférer volt_pack (BMS), repli = tension nominale 55 71 t[15] (52 V)
+       - Courant : préférer amp_pack (BMS), repli = motor_cur_total (somme moteurs, signé)
+       - Puissance = courant_estimé × tension_estimée, étiquetée "estimé" */
+    const vf=Store.get("motor_cur_f"),vr=Store.get("motor_cur_r");
+    let vp=Store.get("volt_pack");
+    let volt_src="pack";
+    if(!isNum(vp)){
+      // FIX-2 : repli sur tension nominale (55 71 t[15]), PAS estimation SOC
+      const nomV=Store.get("nom_volt");
+      vp=isNum(nomV)&&nomV>10?nomV:52; // 52 V si jamais reçue
+      volt_src="nom";
+    }
+    Store.set("volt_est",isNum(Store.get("volt_pack"))?null:vp); // null si vrai BMS
+    Store.set("volt_src",volt_src); // "pack" ou "nom"
+    if(isNum(vf)&&isNum(vr)){
+      const totalA=Store.get("motor_cur_total"); // déjà calculé, signé
+      if(isNum(vp))Store.set("power_w",Math.round(totalA*vp));
+      // FIX-1 : amp_pack null sur Mini Q → utiliser courant moteur total comme estimation
+      if(!isNum(Store.get("amp_pack")))Store.set("amp_pack_est",totalA);
+    }
   }
 };
 
@@ -739,15 +835,18 @@ const CATS={batt:"Batterie",bms:"BMS",def:"Défauts",ctrl:"Contrôle",mot:"Moteu
 const CATALOG=[];
 function cat(k,catName,label,unit,help,fmt){CATALOG.push({k,cat:catName,label,unit,help,fmt})}
 
-cat("volt_pack","batt","Tension pack","V","Tension totale du pack batterie (52 V nominal), mesurée par le BMS.");
-cat("volt_pole","batt","Tension pôle","V","Tension aux bornes de sortie (pôles). Un écart avec la tension pack indique une chute dans le câblage/fusible.");
-cat("amp_pack","batt","Courant pack","A","Courant sortant de la batterie. NÉGATIF = régénération (le freinage renvoie du courant dans le pack).");
-cat("soc","batt","SOC","%","State of Charge : niveau de charge restant, estimé par le BMS.");
-cat("soh","batt","SOH","%","State of Health : santé globale de la batterie par rapport à sa capacité neuve.");
-for(let i=1;i<=7;i++)cat("batt_t"+i,"batt","Capteur batterie "+i,"°C","Sonde de température n°"+i+" répartie dans le pack. « n/d » = sonde absente (valeur brute 0 ou FF).");
-cat("batt_tmax","batt","Temp. batterie max","°C","Maximum calculé parmi les 7 sondes du pack (génère les alertes).");
-cat("cell_t_max","batt","Temp. cellule max","°C","Température de la cellule la plus chaude selon le BMS.");
-cat("cell_t_min","batt","Temp. cellule min","°C","Température de la cellule la plus froide selon le BMS.");
+cat("volt_pack","batt","Tension pack","V","Tension totale du pack (BMS UART). Sur Mini Q : non transmise (trame 55 52 t[2..3]=0) → affichée « — ».");
+cat("volt_pole","batt","Tension pôle","V","Tension aux bornes de sortie. Sur Mini Q : non disponible.");
+cat("amp_pack","batt","Courant pack","A","Courant shunt batterie. Sur Mini Q : ABSENT (55 52 t[6..7]=0 en permanence) → affiché « — ». FIX-1.");
+cat("amp_pack_est","batt","Courant ≈ moteurs (est.)","A","Estimation : somme signée courants moteur AV+AR (55 72). Étiquetée « ≈ moteurs ». Peut être négative si régénération. À valider avec un log de freinage. FIX-5.");
+cat("raw_5253","batt","Champ brut 55 52 t[4..5]","","Valeur interne brute de la trame 55 52, octets 4-5. Suit une logique inconnue (12-30 à froid, chute en accélération). NE PAS interpréter en volts. FIX-7.");
+cat("soc","batt","SOC","%","State of Charge : niveau de charge (55 52 t[8]). Seul champ utile dans 55 52 sur la Mini Q.");
+cat("soh","batt","SOH","%","State of Health. Sur Mini Q : t[9] = copie du SOC → non fiable, affiché « — ». FIX-3.");
+for(let i=1;i<=7;i++)cat("batt_t"+i,"batt","Capteur batterie "+i,"°C","Sonde de température. Sur Mini Q : t[9..11] = copies du SOC → affiché « — ». FIX-3.");
+cat("batt_tmax","batt","Temp. batterie max","°C","Maximum des 7 sondes. Sur Mini Q : non disponible (copies SOC).");
+cat("cell_t_max","batt","Temp. cellule max","°C","Température cellule max (BMS). Non disponible sur Mini Q.");
+cat("cell_t_min","batt","Temp. cellule min","°C","Température cellule min (BMS). Non disponible sur Mini Q.");
+cat("ctrl_temp_raw","batt","Champ brut 55 52 t[5]","","Octet 5 de 55 52. Valeur variable, signification inconnue. Peut-être température interne contrôleur — à valider.");
 
 cat("bms_relay","bms","Relais (brut)","","État des relais internes du BMS (3 octets bruts, décodage non documenté).");
 cat("mos_charge","bms","MOS charge","","Transistor MOS de charge : 1 = autorisée, 0 = bloquée (protection).");
@@ -803,7 +902,7 @@ cat("turn_l","mot","Clignotant G","","Clignotant gauche actif (bit 5).");
 cat("turn_r","mot","Clignotant D","","Clignotant droit actif (bit 6).");
 cat("sys_status3","mot","systemStatus3","","Troisième octet de statut système (non documenté).");
 
-cat("spd_avg","traj","Vitesse moyenne","km/h","Vitesse moyenne du trajet courant côté trottinette.");
+cat("spd_avg","traj","Vitesse instantanée","km/h","Vitesse en direct (trame 55 73, t[2..3] ×0.1). Vérifié Mini Q : varie en temps réel.");
 cat("spd_max","traj","Vitesse max","km/h","Vitesse maximale du trajet courant.");
 cat("trip_km","traj","Trip","km","Distance du trajet courant (remise à zéro à l'arrêt ?).");
 cat("odo_km","traj","Odomètre","km","Kilométrage total de la trottinette.");
@@ -822,8 +921,13 @@ cat("ver_lc","id","Version LC","","Version LC (55 44, offsets supposés).");
 cat("ver_ctrl_f","id","Version contrôleur AV","","Version contrôleur avant (55 45, offsets supposés).");
 cat("ver_ctrl_r","id","Version contrôleur AR","","Version contrôleur arrière (55 45, offsets supposés).");
 
-cat("speed_kmh","der","Vitesse réelle","km/h","287 × taille roue ÷ vitesse brute. 0 si vitesse brute ≥ 3000 ou résultat ≤ 0,5 km/h.");
-cat("power_w","der","Puissance instantanée","W","(Courant moteur AV + AR) × tension pack.");
+cat("speed_kmh","der","Vitesse réelle","km/h","FIX-6 : source principale = 55 73 t[2..3] ×0.1 (varie en direct sur Mini Q, doc dit « moy » mais c'est la vitesse inst.). Repli : 287×roue÷speed_raw si speed_raw<3000. À valider en roulant.");
+cat("speed_kmh_73","der","Vitesse 55 73","km/h","Vitesse brute depuis 55 73 t[2..3]×0.1 (à valider en roulant).");
+cat("power_w","der","Puissance ≈ (estimée)","W","(Courant moteur AV+AR) × tension nominale (52 V). Étiquetée « estimé ». FIX-5.");
+cat("motor_cur_total","der","Courant ≈ moteurs","A","Somme signée courant AV+AR (55 72). Estimation du courant pack. FIX-5.");
+cat("volt_est","der","Tension repli (nominale)","V","Tension nominale lue dans 55 71 t[15] (52 V), utilisée pour le calcul de puissance quand volt_pack est absent. FIX-2.");
+cat("speed_raw_f","der","Speed raw AV","","Compteur brut moteur avant (55 72 t[7..8]). ≥ 3000 = invalide/arrêt. FIX-1.");
+cat("speed_raw_r","der","Speed raw AR","","Compteur brut moteur arrière (55 72 t[15..16]). ≥ 3000 = invalide/arrêt. FIX-1.");
 
 /* ================================================================
    DB — IndexedDB avec repli localStorage / mémoire.
@@ -970,7 +1074,7 @@ function drawTempsChart(cv){
    ================================================================ */
 const Raw={
   stats:new Map(),   // "55 72" -> {count,last,prev,ts}
-  log:[], LOG_MAX:400,
+  log:[], LOG_MAX:30000, // FIX-journal : 30 000 lignes pour capturer une sortie complète
   total:0,crcErr:0,rate:0,_rateN:0,_rateT:0,
   paused:false,
   push(t,crcOk,dir="RX"){
@@ -1277,10 +1381,11 @@ const Demo={
       if(tick%19===0){ // 55 54 défauts (tous OK ; t[17]=état charge 0)
         frames.push(this.buildFrame(0x54,new Array(17).fill(0)));
       }
-      if(tick%8===4){ // 55 73 trajet
+      if(tick%8===4){ // 55 73 trajet — t[2..3] = vitesse inst. sur Mini Q
         const regenCr=Math.round(Session.regenWh*10)+3210;
+        const spdRaw=Math.round(s.spd*10);
         frames.push(this.buildFrame(0x73,this.bytes(
-          Math.round(21.3*10)>>8,213&255, Math.round(46.8*10)>>8,468&255,
+          spdRaw>>8,spdRaw&255, Math.round(46.8*10)>>8,468&255,
           Math.round(s.trip*10)>>8,Math.round(s.trip*10)&255,
           Math.round(s.odo)>>16&255,Math.round(s.odo)>>8&255,Math.round(s.odo)&255,
           regenCr>>8,regenCr&255, 0,0,0, 0x00, 2, 0x00)));
@@ -1326,8 +1431,14 @@ const Session={
     if(this.lastTick===null){this.lastTick=t;return}
     const dt=(t-this.lastTick)/1000;this.lastTick=t;
     if(dt<=0||dt>3||!Store.connActive)return;
-    const amp=Store.get("amp_pack"),volt=Store.get("volt_pack"),spd=Store.get("speed_kmh");
+    // FIX-5 : utiliser amp_pack (BMS) ou amp_pack_est (moteurs) pour Wh
+    let amp=Store.get("amp_pack");
+    if(!isNum(amp)) amp=Store.get("amp_pack_est"); // estimation moteurs
+    let volt=Store.get("volt_pack");
+    if(!isNum(volt)) volt=Store.get("volt_est")||52; // tension nominale (FIX-2)
+    let spd=Store.get("speed_kmh");
     if(isNum(amp)&&isNum(volt)){
+      // FIX-5 : régén = courant négatif seulement (à valider — log freinage non disponible)
       if(amp<0)this.regenWh+=(-amp)*volt*dt/3600;
       else this.usedWh+=amp*volt*dt/3600;
     }
@@ -1422,6 +1533,7 @@ const Settings={
 function postDecode(){
   const e=Store.get("eabs_lvl");if(Array.isArray(e)){Store.set("eabs_h",e[0]);Store.set("eabs_l",e[1])}
   const s=Store.get("start_lvl");if(Array.isArray(s)){Store.set("start_lvl_h",s[0]);Store.set("start_lvl_l",s[1])}
+  // volt_est et amp_pack_est déjà mis à jour dans Decoder.decode()
 }
 
 /* ================================================================
@@ -1504,7 +1616,9 @@ const UI={
   show(id){
     this.active=id;
     $$(".page").forEach(p=>p.classList.toggle("active",p.id==="p-"+id));
+    const activeTab=$("#tabbar button[data-p='"+id+"']");
     $$("#tabscroll .tab").forEach(b=>b.classList.toggle("active",b.dataset.p===id));
+    if(activeTab)activeTab.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"});
     window.scrollTo(0,0);
     if(!this.built[id]){this["build_"+id]&&this["build_"+id]();this.built[id]=true}
     this.lastDraw=0; // forcer redraw canvas
@@ -1554,7 +1668,7 @@ const UI={
   evalAlerts(t){
     if(t-(this._alT||0)<500)return;this._alT=t;
     const msgs=[];
-    const tb=freshV("batt_tmax");if(isNum(tb)&&tb>=Settings.get("alertTBatt"))msgs.push(`Batterie chaude : ${tb}°C`);
+    const tb=freshV("batt_tmax");if(isNum(tb)&&tb>0&&tb>=Settings.get("alertTBatt"))msgs.push(`Batterie chaude : ${tb}°C`);
     const tf=freshV("motor_t_f"),tr=freshV("motor_t_r");const tm=Math.max(isNum(tf)?tf:-99,isNum(tr)?tr:-99);
     if(tm>=Settings.get("alertTMot"))msgs.push(`Moteur chaud : ${tm}°C`);
     const soc=freshV("soc");if(isNum(soc)&&soc<=Settings.get("alertSoc"))msgs.push(`Batterie faible : ${soc} %`);
@@ -1580,13 +1694,27 @@ const UI={
     if(spdEl.textContent!==sTxt)spdEl.textContent=sTxt;
     $("#lvUnit").textContent=u==="mph"?"mph":"km/h";
     $("#gaugeMax").textContent=disp.max;
-    const amp=freshV("amp_pack"),regen=isNum(amp)&&amp<-0.3;
+    const amp=freshV("amp_pack"),regen=isNum(amp)&&amp<-0.5;
     $("#gaugeSvg").classList.toggle("regen",regen);
     $("#lvRegen").classList.toggle("show",regen);
-    setTile("lvSoc","soc");setTile("lvVolt","volt_pack");setTile("lvPow","power_w");
+    setTile("lvSoc","soc");
+    // Tension : préférer volt_pack (BMS), sinon volt_est (estimation SOC)
+    const vPack=freshV("volt_pack");
+    const vEst=freshV("volt_est");
+    const vShow=isNum(vPack)?vPack:vEst;
+    const vEl=$("#lvVolt");
+    if(isNum(vShow)){vEl.innerHTML=vShow.toFixed(1)+'<small>V'+(isNum(vPack)?'':'~')+'</small>';vEl.parentElement.classList.remove("stale")}
+    else{vEl.innerHTML="—";vEl.parentElement.classList.toggle("stale",true)}
+    setTile("lvPow","power_w");
     const a=setTile("lvAmp","amp_pack");
     if(a)$("#lvAmp").className="t-val num "+(!a.num?"":a.num<-0.3?"ok":a.num>0.5?"bad":"");
-    setTile("lvGear","gear");setTile("lvTBatt","batt_tmax");setTile("lvTMotF","motor_t_f");setTile("lvTMotR","motor_t_r");
+    setTile("lvGear","gear");
+    // Temp batterie : sur Mini Q batt_tmax est null, afficher "n/d"
+    const tbMax=freshV("batt_tmax");
+    const tbEl=$("#lvTBatt");
+    if(isNum(tbMax)){tbEl.innerHTML=tbMax+'<small>°C</small>';tbEl.parentElement.classList.remove("stale")}
+    else{tbEl.textContent=Store.connActive?"n/d":"—";tbEl.parentElement.classList.toggle("stale",Store.connActive)}
+    setTile("lvTMotF","motor_t_f");setTile("lvTMotR","motor_t_r");
     const e=Store.get("eabs_lvl");
     $("#lvEabs").textContent=(Array.isArray(e)&&Store.fresh("eabs_lvl"))?e.join(" / "):"—";
     const rev=freshV("sys_reverse"),eco=freshV("sys_eco"),at=freshV("sys_atmode");
@@ -1916,7 +2044,7 @@ const UI={
   }catch(e){}
   try{
     if("serviceWorker" in navigator&&/^https?:/.test(location.protocol))
-      navigator.serviceWorker.register("./sw.js").catch(()=>{});
+      navigator.serviceWorker.register("sw.js").catch(()=>{});
   }catch(e){}
   if(!Ble.supported())
     toast("Web Bluetooth introuvable. Ouvrez ce fichier dans Bluefy (iOS) — le mode Démo fonctionne partout.",true,5000);
