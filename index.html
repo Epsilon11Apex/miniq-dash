@@ -338,7 +338,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 
   <!-- ============ PAGE ÉNERGIE ============ -->
   <section class="page" id="p-energie">
-    <!-- FIX-d : mise en page flex-wrap, police réduite, nowrap sur les valeurs -->
     <div class="card tight">
       <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px;justify-content:space-between">
         <div style="min-width:0">
@@ -355,15 +354,29 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
       </div>
     </div>
     <div class="card">
-      <h3>Courant ≈ moteurs — 60 s</h3>
+      <h3>Courant moteurs — 60 s</h3>
       <canvas class="chart" id="chEnergy"></canvas>
-      <div class="legend"><span><i style="background:var(--bad)"></i>Décharge</span><span><i style="background:var(--ok)"></i>Régén (à valider)</span></div>
+      <div class="legend"><span><i style="background:var(--bad)"></i>Consommation</span><span><i style="background:var(--acc)"></i>Frein régén actif (hypothèse)</span></div>
+    </div>
+    <!-- FIX-4 : Wh régénérés SUPPRIMÉ — remplacé par freinage régén (hypothèse) -->
+    <div class="card">
+      <h3>Freinage régénératif — hypothèse <button class="qbtn" id="regenHelpBtn" style="margin-left:8px">?</button></h3>
+      <div class="vhelp" id="regenHelp" style="display:none;font-size:12.5px;color:var(--mut);padding:8px 0">
+        <b>Hypothèse (à confirmer) :</b> Le bit 0x0400 dans ecu_f/ecu_r coïncide avec une décélération moyenne de -1,14 km/h/s sur la sortie réelle (contre +0,08 km/h/s hors drapeau), présent 6,6 % du temps. Ce n'est PAS une mesure de courant de régénération. Aucun courant négatif n'a été observé sur les 2552 échantillons de la sortie. Énergie cinétique = borne haute théorique (½·m·Δv²), non une mesure.
+      </div>
+      <div class="grid2" style="margin:0">
+        <div class="tile"><span class="t-lab">Frein actif (hypothèse)</span><span class="t-val num" id="enRegenFlag">—</span></div>
+        <div class="tile"><span class="t-lab">Épisodes</span><span class="t-val num" id="enRegenEps">0</span></div>
+        <div class="tile"><span class="t-lab">Durée totale</span><span class="t-val num" id="enRegenDur">0 s</span></div>
+        <div class="tile"><span class="t-lab">% du temps</span><span class="t-val num" id="enRegenPct">—</span></div>
+        <div class="tile" id="enEkinTile" style="display:none"><span class="t-lab">Énergie cin. (borne haute)</span><span class="t-val num" id="enEkin">—</span><span class="t-sub">½m·Δv² · estimation maximale</span></div>
+      </div>
     </div>
     <div class="grid2">
-      <div class="tile"><span class="t-lab">Régén session (est.)</span><span class="t-val num ok" id="enRegenWh">0.0</span><span class="t-sub">Wh · courant moteur nég. × tension nom. (à valider)</span></div>
-      <div class="tile"><span class="t-lab">Cumul trottinette</span><span class="t-val num" id="enCumul">—</span><span class="t-sub">Trame 55 73 t[11..12] · unité non vérifiée</span></div>
-      <div class="tile"><span class="t-lab">Niveau régén (EABS)</span><span class="t-val num" id="enEabs">—</span><span class="t-sub">Nibbles haut / bas (55 71 t[9])</span></div>
-      <div class="tile"><span class="t-lab">Conso estimée</span><span class="t-val num" id="enWhKm">—</span><span class="t-sub">Wh/km (estimation · à valider)</span></div>
+      <div class="tile"><span class="t-lab">Énergie utilisée (est.)</span><span class="t-val num" id="enUsedWh">0.0</span><span class="t-sub">Wh · courant moteur × 52 V nom.</span></div>
+      <div class="tile"><span class="t-lab">Cumul trottinette</span><span class="t-val num" id="enCumul">—</span><span class="t-sub">55 73 t[11..12] · unité non vérifiée</span></div>
+      <div class="tile"><span class="t-lab">Niveau régén (EABS)</span><span class="t-val num" id="enEabs">—</span><span class="t-sub">Nibbles 55 71 t[9]</span></div>
+      <div class="tile"><span class="t-lab">Conso estimée</span><span class="t-val num" id="enWhKm">—</span><span class="t-sub">Wh/km (estimé)</span></div>
     </div>
   </section>
 
@@ -603,6 +616,25 @@ const Store={
    ================================================================ */
 const FaultNames={}; // noms génériques générés plus bas (« Défaut #N »)
 
+/* ----------------------------------------------------------------
+   VALIDATEURS DE PLAUSIBILITÉ — seuils issus de la sortie réelle.
+   Tout champ hors plage → null : ne pollue jamais puissance/énergie.
+   ---------------------------------------------------------------- */
+const Plausible={
+  rejectedFrames:0,  // compteur trames 55 52 rejetées (au moins 1 champ hors plage)
+  volt(v){return isNum(v)&&v>=30&&v<=70},      // pack 30-70 V
+  amp(v){return isNum(v)&&v>=-200&&v<=200},    // courant pack ±200 A
+  motorA(v){return isNum(v)&&v>=0&&v<=60},     // courant moteur 0-60 A (jamais négatif mesuré)
+  temp(v){return isNum(v)&&v>=-20&&v<=120},    // toutes températures -20..120 °C
+  ok52(vp,ap,t8,t9,t10,t11){                  // trame 55 52 : au moins 1 champ hors plage ?
+    if(vp!==null&&!this.volt(vp))return false;
+    if(ap!==null&&!this.amp(ap))return false;
+    // t[8..11] : si l'un dépasse 100 (valeur brute) c'est suspect quand hasBms=false
+    // Laissé à decode() — ici on vérifie la tension et le courant seulement
+    return true;
+  }
+};
+
 function tempFromRaw(raw){ // raw-40, avec gestion capteur absent (0 ou 0xFF)
   if(raw===0||raw===0xFF) return null;
   return raw-40;
@@ -613,66 +645,84 @@ const Decoder={
   decode(t){
     const id=t[1];
     switch(id){
-      /* ---------- 55 52 — BATTERIE (Mini Q révision complète) ----------
-         Vérifié sur logs réels T1FR106… :
-         t[2..3] = 0x0000 → tension pack ABSENTE sur Mini Q (pas de BMS UART)
-         t[4..5] = valeur interne ~12-30, suit une logique inconnue (affiché brut)
-         t[6..7] = 0x0000 → courant pack ABSENT (pas de shunt)
-         t[8]    = SOC % (ex: 0x4C=76) ← seul champ utile
-         t[9..11]= copies de t[8] (même valeur = pas SOH ni températures)
-         Règle : si t[8]==t[9]==t[10]==t[11], pas de BMS → SOH=null, sondes=null
-         Avec BMS (tension>0), la doc originale s'applique.
+      /* ---------- 55 52 — BATTERIE (Mini Q, logs sortie réelle 15 km/43 min) ----------
+         t[2..3] = 0x0000 → tension ABSENTE (pas de BMS UART)
+         t[4..5] = champ brut interne (logique inconnue, affiché sans unité)
+         t[6..7] = 0x0000 → courant ABSENT (pas de shunt)
+         t[8]    = valeur brute qui chute sous charge (85 repos → ~20 à 25 A)
+                   → utilisée comme "SOC (dernier repos)" uniquement (voir postDecode)
+         t[9..11]= copies de t[8]
+         PLAUSIBILITÉ : 20 trames/2552 avaient tension 240-655 V, courant -1000 A,
+         sondes -38 °C → puissance max 185 kW et énergie régénérée 18707 Wh fictifs.
+         Toute trame hors seuils est rejetée entièrement (compteur Plausible.rejectedFrames).
          ------ */
       case 0x52:{
         const vp_raw=u16(t,2), ap_raw=u16(t,6);
-        const hasBms=vp_raw>0;  // Si tension présente → BMS connecté
-        // Stocker le champ brut t[4..5] toujours (FIX-7 : affiché sans unité dans Tout)
+        const hasBms=vp_raw>0;
+        // Stocker le champ brut t[4..5] toujours (affiché sans unité dans Tout)
         Store.set("raw_5253",u16(t,4));
         if(hasBms){
-          // — modèle avec BMS complet (doc originale) —
-          Store.set("volt_pack",vp_raw*0.1);
+          // — modèle avec BMS (doc originale) —
+          const vp=vp_raw*0.1;
+          const ap=(ap_raw>32767?ap_raw-65536:ap_raw)*0.1-1000;
+          // PLAUSIBILITÉ : rejeter la trame entière si hors seuils (FIX-1)
+          if(!Plausible.volt(vp)||!Plausible.amp(ap)){
+            Plausible.rejectedFrames++;
+            break; // aucun Store.set → aucune valeur corrompue
+          }
+          Store.set("volt_pack",vp);
           Store.set("volt_pole",u16(t,4)*0.1);
-          // Courant signé 16 bits : raw*0.1 - 1000 (négatif = régén)
-          Store.set("amp_pack",(ap_raw>32767?ap_raw-65536:ap_raw)*0.1-1000);
+          Store.set("amp_pack",ap);
           Store.set("soc",t[8]);
-          // SOH et températures seulement si t[9]≠t[8] (vraies valeurs distinctes)
           const allSame=(t[9]===t[8]&&t[10]===t[8]&&t[11]===t[8]);
           Store.set("soh",allSame?null:t[9]);
           let tmax=null;
           for(let i=0;i<7;i++){
-            const raw=allSame&&i<4?null:t[10+i]; // copies SOC → null
+            const raw=allSame&&i<4?null:t[10+i];
             const v=raw===null?null:tempFromRaw(raw);
-            Store.set("batt_t"+(i+1),v);
-            if(v!==null&&(tmax===null||v>tmax))tmax=v;
+            // PLAUSIBILITÉ température
+            const vv=(v!==null&&Plausible.temp(v))?v:null;
+            Store.set("batt_t"+(i+1),vv);
+            if(vv!==null&&(tmax===null||vv>tmax))tmax=vv;
           }
           Store.set("batt_tmax",tmax);
-          Store.set("cell_t_max",tempFromRaw(t[17]));
-          Store.set("cell_t_min",tempFromRaw(t[18]));
+          const ctmax=tempFromRaw(t[17]), ctmin=tempFromRaw(t[18]);
+          Store.set("cell_t_max",Plausible.temp(ctmax)?ctmax:null);
+          Store.set("cell_t_min",Plausible.temp(ctmin)?ctmin:null);
         } else {
-          // — Mini Q sans BMS UART (FIX-1,2,3) —
-          Store.set("volt_pack",null);   // FIX-2 : ABSENT → null (pas 0.0 V)
+          // — Mini Q sans BMS UART —
+          // PLAUSIBILITÉ : vp=0, ap=0 → raw entier vaut 0 → formule donnerait -1000 A
+          // → on vérifie l'absence (raw=0) plutôt que la valeur dérivée
+          if(ap_raw!==0){
+            // courant non nul sans BMS → trame aberrante
+            Plausible.rejectedFrames++;
+            break;
+          }
+          Store.set("volt_pack",null);
           Store.set("volt_pole",null);
-          Store.set("amp_pack",null);    // FIX-1 : ABSENT → null (pas -1000 A)
-          const soc=t[8];
-          Store.set("soc",soc);
-          // FIX-3 : si t[8]==t[9]==t[10]==t[11] → copies SOC, pas SOH ni températures
-          const allSame=(t[9]===soc&&t[10]===soc&&t[11]===soc);
-          Store.set("soh",null);         // FIX-3 : SOH non disponible
-          // Températures batterie : null si copies du SOC, sinon tenter le décodage
+          Store.set("amp_pack",null);
+          // t[8] brut : stocké toujours pour affichage "Tout"
+          Store.set("soc_raw_52",t[8]);
+          // SOC "dernier repos" géré dans postDecode (FIX-3)
+          Store.set("soh",null);
+          const allSame=(t[9]===t[8]&&t[10]===t[8]&&t[11]===t[8]);
           if(allSame){
             for(let i=1;i<=7;i++) Store.set("batt_t"+i,null);
-            Store.set("batt_tmax",null);
-            Store.set("cell_t_max",null);
-            Store.set("cell_t_min",null);
+            Store.set("batt_tmax",null); Store.set("cell_t_max",null); Store.set("cell_t_min",null);
           } else {
-            // Valeurs distinctes : des sondes réelles ont peut-être été ajoutées
             let tmax=null;
-            for(let i=0;i<7;i++){const v=tempFromRaw(t[10+i]);Store.set("batt_t"+(i+1),v);if(v!==null&&(tmax===null||v>tmax))tmax=v}
+            for(let i=0;i<7;i++){
+              const v=tempFromRaw(t[10+i]);
+              const vv=(v!==null&&Plausible.temp(v))?v:null;
+              Store.set("batt_t"+(i+1),vv);
+              if(vv!==null&&(tmax===null||vv>tmax))tmax=vv;
+            }
             Store.set("batt_tmax",tmax);
-            Store.set("cell_t_max",tempFromRaw(t[17]));
-            Store.set("cell_t_min",tempFromRaw(t[18]));
+            const ctmax=tempFromRaw(t[17]), ctmin=tempFromRaw(t[18]);
+            Store.set("cell_t_max",Plausible.temp(ctmax)?ctmax:null);
+            Store.set("cell_t_min",Plausible.temp(ctmin)?ctmin:null);
           }
-          Store.set("ctrl_temp_raw",t[5]); // champ brut variable, signification inconnue
+          // ctrl_temp_raw SUPPRIMÉ (FIX-2 : c'est une copie de t[8], pas une température)
         }
         break;
       }
@@ -739,29 +789,48 @@ const Decoder={
          La vitesse instantanée vient de 55 73 t[2..3] (plus fiable).
          ------ */
       case 0x72:{
-        /* FIX-5 : courants moteur lus en SIGNÉ 16 bits (négatif = régén probable) */
-        const s16=(v)=>v>32767?v-65536:v;
-        Store.set("ecu_f",u16(t,2));                // statuts ECU avant (brut)
-        Store.set("motor_cur_f",s16(u16(t,4))*0.1); // courant moteur avant (A), signé
-        /* FIX-1 : speed_raw à t[7..8] (AV) et t[15..16] (AR) */
-        Store.set("speed_raw_f",u16(t,7));           // speed_raw moteur avant
-        Store.set("motor_t_f",(t[9]===0||t[9]===0xFF)?null:t[9]); // temp moteur AV (brut)
-        Store.set("ecu_r",u16(t,10));               // statuts ECU arrière (brut)
-        Store.set("light_on",bit(t[11],4));         // phare
-        Store.set("turn_l",bit(t[11],5));           // clignotant gauche
-        Store.set("turn_r",bit(t[11],6));           // clignotant droit
-        Store.set("motor_cur_r",s16(u16(t,12))*0.1); // courant moteur arrière (A), signé
-        Store.set("speed_raw_r",u16(t,15));          // speed_raw moteur arrière
-        Store.set("speed_raw",u16(t,15));            // compat : vitesse brute
-        Store.set("motor_t_r",(t[17]===0||t[17]===0xFF)?null:t[17]); // temp moteur AR (brut)
-        Store.set("sys_status3",t[18]);             // systemStatus3
-        const totalA=s16(u16(t,4))*0.1 + s16(u16(t,12))*0.1;
+        const ecuF=u16(t,2), ecuR=u16(t,10);
+        Store.set("ecu_f",ecuF);
+        Store.set("ecu_r",ecuR);
+        // Courants moteur : jamais négatifs sur la Mini Q (max 25,2 A mesuré).
+        // On les lit non signés ×0.1 et on applique la plausibilité 0-60 A.
+        const cfRaw=u16(t,4)*0.1, crRaw=u16(t,12)*0.1;
+        const cf=Plausible.motorA(cfRaw)?cfRaw:null; // null si hors 0-60 A
+        const cr=Plausible.motorA(crRaw)?crRaw:null;
+        Store.set("motor_cur_f",cf);
+        Store.set("motor_cur_r",cr);
+        // Speed raw : t[7..8] AV, t[15..16] AR (vérifié Mini Q)
+        Store.set("speed_raw_f",u16(t,7));
+        Store.set("speed_raw_r",u16(t,15));
+        Store.set("speed_raw",u16(t,15));
+        // Températures moteur (brut sans offset) — plausibilité -20..120 °C
+        const tf=t[9],tr=t[17];
+        const tmf=(tf===0||tf===0xFF)?null:tf;
+        const tmr=(tr===0||tr===0xFF)?null:tr;
+        Store.set("motor_t_f",Plausible.temp(tmf)?tmf:null);
+        Store.set("motor_t_r",Plausible.temp(tmr)?tmr:null);
+        Store.set("light_on",bit(t[11],4));
+        Store.set("turn_l",bit(t[11],5));
+        Store.set("turn_r",bit(t[11],6));
+        Store.set("sys_status3",t[18]);
+        // FIX-4 : flag régénératif/frein — bit 0x0400 de ecu_f OU ecu_r
+        // Hypothèse : coïncide avec décélération moyenne -1,14 km/h/s sur la sortie réelle.
+        const regenFlag=((ecuF&0x0400)!==0)||((ecuR&0x0400)!==0)?1:0;
+        Store.set("regen_flag_f",(ecuF&0x0400)!==0?1:0);
+        Store.set("regen_flag_r",(ecuR&0x0400)!==0?1:0);
+        Store.set("regen_flag",regenFlag);
+        // Courant total moteurs (jamais négatif ici → seulement > 0)
+        const cfV=cf!==null?cf:0, crV=cr!==null?cr:0;
+        const totalA=cfV+crV;
         Store.set("motor_cur_total",totalA);
-        /* FIX-1 : règle raw >= 3000 -> vitesse 0 */
+        // Puissance estimée = courant moteur × 52 V nominal (FIX-4)
+        const nomV=Store.get("nom_volt");
+        const vnom=isNum(nomV)&&nomV>10?nomV:52;
+        Store.set("power_w",Math.round(totalA*vnom));
+        Store.set("amp_pack_est",totalA);
+        // Vitesse de secours (si 55 73 pas fraîche)
         const wheel=Store.get("wheel_in"), sr=u16(t,15);
-        let spd=0;
-        if(isNum(wheel)&&wheel>0&&sr>0&&sr<3000)spd=287*wheel/sr;
-        else spd=0; // raw >= 3000 ou invalide
+        const spd=(isNum(wheel)&&wheel>0&&sr>0&&sr<3000)?287*wheel/sr:0;
         if(!Store.fresh("speed_kmh_73")) Store.set("speed_kmh",spd);
         break;
       }
@@ -803,26 +872,10 @@ const Decoder={
         Store.set("ver_ctrl_r",`${t[6]}.${t[7]}.${t[8]}`);
         break;
     }
-    /* FIX-2,5 : tension et courant dérivés pour puissance estimée
-       - Tension : préférer volt_pack (BMS), repli = tension nominale 55 71 t[15] (52 V)
-       - Courant : préférer amp_pack (BMS), repli = motor_cur_total (somme moteurs, signé)
-       - Puissance = courant_estimé × tension_estimée, étiquetée "estimé" */
-    const vf=Store.get("motor_cur_f"),vr=Store.get("motor_cur_r");
-    let vp=Store.get("volt_pack");
-    let volt_src="pack";
-    if(!isNum(vp)){
-      // FIX-2 : repli sur tension nominale (55 71 t[15]), PAS estimation SOC
-      const nomV=Store.get("nom_volt");
-      vp=isNum(nomV)&&nomV>10?nomV:52; // 52 V si jamais reçue
-      volt_src="nom";
-    }
-    Store.set("volt_est",isNum(Store.get("volt_pack"))?null:vp); // null si vrai BMS
-    Store.set("volt_src",volt_src); // "pack" ou "nom"
-    if(isNum(vf)&&isNum(vr)){
-      const totalA=Store.get("motor_cur_total"); // déjà calculé, signé
-      if(isNum(vp))Store.set("power_w",Math.round(totalA*vp));
-      // FIX-1 : amp_pack null sur Mini Q → utiliser courant moteur total comme estimation
-      if(!isNum(Store.get("amp_pack")))Store.set("amp_pack_est",totalA);
+    // Puissance dérivée calculée dans case 0x72 (totalA × vnom).
+    // Si volt_pack BMS disponible, on peut l'utiliser ici aussi.
+    if(isNum(Store.get("volt_pack"))&&isNum(Store.get("amp_pack"))){
+      Store.set("power_w",Math.round(Store.get("amp_pack")*Store.get("volt_pack")));
     }
   }
 };
@@ -840,13 +893,14 @@ cat("volt_pole","batt","Tension pôle","V","Tension aux bornes de sortie. Sur Mi
 cat("amp_pack","batt","Courant pack","A","Courant shunt batterie. Sur Mini Q : ABSENT (55 52 t[6..7]=0 en permanence) → affiché « — ». FIX-1.");
 cat("amp_pack_est","batt","Courant ≈ moteurs (est.)","A","Estimation : somme signée courants moteur AV+AR (55 72). Étiquetée « ≈ moteurs ». Peut être négative si régénération. À valider avec un log de freinage. FIX-5.");
 cat("raw_5253","batt","Champ brut 55 52 t[4..5]","","Valeur interne brute de la trame 55 52, octets 4-5. Suit une logique inconnue (12-30 à froid, chute en accélération). NE PAS interpréter en volts. FIX-7.");
-cat("soc","batt","SOC","%","State of Charge : niveau de charge (55 52 t[8]). Seul champ utile dans 55 52 sur la Mini Q.");
-cat("soh","batt","SOH","%","State of Health. Sur Mini Q : t[9] = copie du SOC → non fiable, affiché « — ». FIX-3.");
+cat("soc","batt","SOC (dernier repos)","%","Valeur de 55 52 t[8] validée uniquement vitesse < 1 km/h ET courant moteur < 1 A depuis ≥ 5 s. Maintenue figée en roulant. FIX-3.");
+cat("soh","batt","SOH","%","Non disponible sur Mini Q (t[9] = copie de t[8]).");
 for(let i=1;i<=7;i++)cat("batt_t"+i,"batt","Capteur batterie "+i,"°C","Sonde de température. Sur Mini Q : t[9..11] = copies du SOC → affiché « — ». FIX-3.");
 cat("batt_tmax","batt","Temp. batterie max","°C","Maximum des 7 sondes. Sur Mini Q : non disponible (copies SOC).");
 cat("cell_t_max","batt","Temp. cellule max","°C","Température cellule max (BMS). Non disponible sur Mini Q.");
 cat("cell_t_min","batt","Temp. cellule min","°C","Température cellule min (BMS). Non disponible sur Mini Q.");
-cat("ctrl_temp_raw","batt","Champ brut 55 52 t[5]","","Octet 5 de 55 52. Valeur variable, signification inconnue. Peut-être température interne contrôleur — à valider.");
+// ctrl_temp_raw SUPPRIMÉ (FIX-2) : c'était une copie de t[8], pas une température
+cat("soc_raw_52","batt","t[8] brut 55 52 (chute en charge)","","Valeur brute de 55 52 t[8] : ~85 au repos, chute à ~20 sous 25 A. Pas un SOC fiable ni une température. Utilisé pour SOC (dernier repos).");
 
 cat("bms_relay","bms","Relais (brut)","","État des relais internes du BMS (3 octets bruts, décodage non documenté).");
 cat("mos_charge","bms","MOS charge","","Transistor MOS de charge : 1 = autorisée, 0 = bloquée (protection).");
@@ -890,13 +944,16 @@ cat("eabs_l","ctrl","EABS (nibble bas)","","Niveau de freinage régénératif �
 cat("sleep_time","ctrl","Veille","min","Délai de mise en veille (t[18] & 7 ; unité probable : minutes).");
 cat("pr_time","ctrl","prTime","","Champ prTime ((t[18]>>3) & 31 ; signification non documentée).");
 
-cat("ecu_f","mot","ECU avant (brut)","","Statuts du contrôleur avant, 16 bits bruts.");
-cat("motor_cur_f","mot","Courant moteur AV","A","Courant de phase moteur avant.");
-cat("motor_t_f","mot","Temp. moteur AV","°C","Température du moteur avant (valeur brute, sans offset). n/d = capteur absent.");
-cat("ecu_r","mot","ECU arrière (brut)","","Statuts du contrôleur arrière, 16 bits bruts (phare = bit 4 de l'octet haut).");
-cat("motor_cur_r","mot","Courant moteur AR","A","Courant de phase moteur arrière.");
-cat("motor_t_r","mot","Temp. moteur AR","°C","Température du moteur arrière (valeur brute, sans offset). n/d = capteur absent.");
-cat("speed_raw","mot","Vitesse brute","","Compteur brut du capteur moteur ; ≥3000 = arrêt. Formule : 287×roue/vitesse brute.");
+cat("ecu_f","mot","ECU avant (brut)","","Statuts du contrôleur avant, 16 bits hex. Bit 0x0400 : hypothèse frein régénératif/frein actif (coïncide avec décélération -1,14 km/h/s sur sortie réelle).");
+cat("regen_flag_f","mot","Flag frein régén AV (hypothèse)","","1 = bit 0x0400 actif dans ecu_f. Hypothèse frein : corrélé avec décélération -1,14 km/h/s (6,6 % du temps). À valider. Température contrôleur = inconnue.");
+cat("motor_cur_f","mot","Courant moteur AV","A","Courant moteur avant (0-60 A, jamais négatif mesuré). Plausibilité appliquée.");
+cat("motor_t_f","mot","Temp. moteur AV","°C","55 72 t[9] en °C brut (sans offset). Mesuré 18→56 °C en sortie réelle, max 60 °C.");
+cat("ecu_r","mot","ECU arrière (brut)","","Statuts du contrôleur arrière. Bit 0x0400 : même hypothèse que ecu_f.");
+cat("regen_flag_r","mot","Flag frein régén AR (hypothèse)","","1 = bit 0x0400 actif dans ecu_r. Hypothèse frein régén/actif.");
+cat("regen_flag","mot","Flag frein régén (combiné)","","1 si ecu_f ou ecu_r a le bit 0x0400. Hypothèse uniquement — non confirmé par courant négatif.");
+cat("motor_cur_r","mot","Courant moteur AR","A","Courant moteur arrière (0-60 A). Plausibilité appliquée. Max mesuré 25,2 A.");
+cat("motor_t_r","mot","Temp. moteur AR","°C","55 72 t[17] en °C brut. Mesuré 18→58 °C en sortie réelle, max 66 °C.");
+cat("speed_raw","mot","Vitesse brute AR","","t[15..16] : ≥ 3000 = arrêt (30 000 mesuré à l'arrêt). Formule de secours : 287×roue/raw.");
 cat("light_on","mot","Phare","","Phare allumé (bit 4 de l'octet 11).");
 cat("turn_l","mot","Clignotant G","","Clignotant gauche actif (bit 5).");
 cat("turn_r","mot","Clignotant D","","Clignotant droit actif (bit 6).");
@@ -923,9 +980,9 @@ cat("ver_ctrl_r","id","Version contrôleur AR","","Version contrôleur arrière 
 
 cat("speed_kmh","der","Vitesse réelle","km/h","FIX-6 : source principale = 55 73 t[2..3] ×0.1 (varie en direct sur Mini Q, doc dit « moy » mais c'est la vitesse inst.). Repli : 287×roue÷speed_raw si speed_raw<3000. À valider en roulant.");
 cat("speed_kmh_73","der","Vitesse 55 73","km/h","Vitesse brute depuis 55 73 t[2..3]×0.1 (à valider en roulant).");
-cat("power_w","der","Puissance ≈ (estimée)","W","(Courant moteur AV+AR) × tension nominale (52 V). Étiquetée « estimé ». FIX-5.");
-cat("motor_cur_total","der","Courant ≈ moteurs","A","Somme signée courant AV+AR (55 72). Estimation du courant pack. FIX-5.");
-cat("volt_est","der","Tension repli (nominale)","V","Tension nominale lue dans 55 71 t[15] (52 V), utilisée pour le calcul de puissance quand volt_pack est absent. FIX-2.");
+cat("power_w","der","Puissance estimée","W","(Courant moteur AV+AR) × tension nominale 52 V. Étiquetée « estimé ». Max plausible ~2,6 kW (25 A × 52 V × 2 moteurs). FIX-4.");
+cat("motor_cur_total","der","Courant ≈ moteurs","A","Somme courant AV+AR (0-120 A max). Jamais négatif sur Mini Q. Utilisé pour Wh estimé.");
+cat("volt_est","der","Tension repli (nominale)","V","Tension nominale (55 71 t[15] = 52 V). Utilisée quand volt_pack absent.");
 cat("speed_raw_f","der","Speed raw AV","","Compteur brut moteur avant (55 72 t[7..8]). ≥ 3000 = invalide/arrêt. FIX-1.");
 cat("speed_raw_r","der","Speed raw AR","","Compteur brut moteur arrière (55 72 t[15..16]). ≥ 3000 = invalide/arrêt. FIX-1.");
 
@@ -1424,27 +1481,70 @@ const Demo={
    SESSION (compteurs dérivés, intégrales) + ENREGISTREUR
    ================================================================ */
 const Session={
-  start:Date.now(),regenWh:0,usedWh:0,distKm:0,lastTick:null,
-  reset(){this.start=Date.now();this.regenWh=0;this.usedWh=0;this.distKm=0;this.lastTick=null},
+  start:Date.now(),
+  usedWh:0,          // Wh moteurs × 52 V (estimé)
+  distKm:0,          // distance intégrée (secours si trip_km absent)
+  tripKmStart:null,  // FIX-5 : valeur trip_km à la connexion (delta = distance réelle)
+  lastTick:null,
+  // FIX-4 : compteurs freinage régénératif (hypothèse bit 0x0400)
+  regenEpisodes:0,   // nombre de transitions 0→1
+  regenDurS:0,       // durée totale flag actif (secondes)
+  regenFlagNow:false,// état courant
+  eKinJoules:0,      // borne haute énergie cinétique dissipée en freinage régén (J)
+  _prevSpd:null,     // vitesse avant l'épisode (pour ½mv²)
+
+  reset(){
+    this.start=Date.now();this.usedWh=0;this.distKm=0;this.tripKmStart=null;
+    this.lastTick=null;this.regenEpisodes=0;this.regenDurS=0;
+    this.regenFlagNow=false;this.eKinJoules=0;this._prevSpd=null;
+  },
   tick(){
     const t=now();
     if(this.lastTick===null){this.lastTick=t;return}
     const dt=(t-this.lastTick)/1000;this.lastTick=t;
     if(dt<=0||dt>3||!Store.connActive)return;
-    // FIX-5 : utiliser amp_pack (BMS) ou amp_pack_est (moteurs) pour Wh
-    let amp=Store.get("amp_pack");
-    if(!isNum(amp)) amp=Store.get("amp_pack_est"); // estimation moteurs
-    let volt=Store.get("volt_pack");
-    if(!isNum(volt)) volt=Store.get("volt_est")||52; // tension nominale (FIX-2)
-    let spd=Store.get("speed_kmh");
-    if(isNum(amp)&&isNum(volt)){
-      // FIX-5 : régén = courant négatif seulement (à valider — log freinage non disponible)
-      if(amp<0)this.regenWh+=(-amp)*volt*dt/3600;
-      else this.usedWh+=amp*volt*dt/3600;
+
+    // FIX-5 : distance = delta trip_km (trame 55 73) ; intégration vitesse = secours
+    const tripKm=Store.get("trip_km");
+    if(isNum(tripKm)){
+      if(this.tripKmStart===null)this.tripKmStart=tripKm;
+    } else {
+      const spd=Store.get("speed_kmh");
+      if(isNum(spd)&&spd>0)this.distKm+=spd*dt/3600;
     }
-    if(isNum(spd)&&spd>0)this.distKm+=spd*dt/3600;
+
+    // Énergie utilisée = courant moteur × 52 V nominal (FIX-4)
+    const amp=Store.get("motor_cur_total");
+    const nomV=Store.get("nom_volt");
+    const vnom=isNum(nomV)&&nomV>10?nomV:52;
+    if(isNum(amp)&&amp>=0&&amp<200){      // plausibilité
+      this.usedWh+=amp*vnom*dt/3600;
+    }
+
+    // FIX-4 : durée freinage régén (flag hypothèse)
+    if(this.regenFlagNow)this.regenDurS+=dt;
+
+    // FIX-4 : énergie cinétique borne haute = ½·m·(v1²-v2²) pendant les épisodes
+    const masse=Settings.get("massKg");
+    if(isNum(masse)&&masse>0&&this.regenFlagNow){
+      const spd=Store.get("speed_kmh");
+      if(isNum(spd)&&isNum(this._prevSpd)&&this._prevSpd>spd){
+        const v1=this._prevSpd/3.6, v2=spd/3.6; // m/s
+        if(v1>v2)this.eKinJoules+=0.5*masse*(v1*v1-v2*v2);
+      }
+      this._prevSpd=Store.get("speed_kmh");
+    } else {
+      this._prevSpd=Store.get("speed_kmh");
+    }
   },
-  whkm(){return this.distKm>0.05?this.usedWh/this.distKm:null}
+  distReal(){
+    // distance réelle = delta trip_km si disponible, sinon intégration vitesse
+    const tk=Store.get("trip_km");
+    if(isNum(tk)&&isNum(this.tripKmStart))return Math.max(0,tk-this.tripKmStart);
+    return this.distKm;
+  },
+  whkm(){const d=this.distReal();return d>0.05?this.usedWh/d:null},
+  regenFrac(){const tot=(Date.now()-this.start)/1000;return tot>5?this.regenDurS/tot:null}
 };
 
 const Recorder={
@@ -1520,7 +1620,7 @@ const fnameDate=d=>{const p=n=>String(n).padStart(2,"0");return d.getFullYear()+
    SETTINGS — valeurs par défaut + persistance
    ================================================================ */
 const Settings={
-  defs:{unit:"kmh",theme:"dark",recInterval:1000,alertTBatt:60,alertTMot:110,alertSoc:15,vibrate:true,wakeLock:true},
+  defs:{unit:"kmh",theme:"dark",recInterval:1000,alertTBatt:60,alertTMot:110,alertSoc:15,vibrate:true,wakeLock:true,massKg:0},
   cache:{},
   async load(){for(const k in this.defs)this.cache[k]=await DB.getSetting(k,this.defs[k]);this.applyTheme()},
   get(k){return k in this.cache?this.cache[k]:this.defs[k]},
@@ -1529,12 +1629,43 @@ const Settings={
     const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=this.get("theme")==="light"?"#eef1f6":"#05070c"}
 };
 
-/* patch post-décodage : exposer les nibbles comme clés individuelles */
+/* patch post-décodage : nibbles + SOC repos + épisodes régén */
 function postDecode(){
   const e=Store.get("eabs_lvl");if(Array.isArray(e)){Store.set("eabs_h",e[0]);Store.set("eabs_l",e[1])}
   const s=Store.get("start_lvl");if(Array.isArray(s)){Store.set("start_lvl_h",s[0]);Store.set("start_lvl_l",s[1])}
-  // volt_est et amp_pack_est déjà mis à jour dans Decoder.decode()
+
+  /* FIX-3 : SOC (dernier repos)
+     t[8] brut chute sous charge → on ne le monte en "soc" que si vitesse~0 ET courant<1 A
+     depuis ≥ 5 s. Pendant le roulage, soc = dernière valeur validée (figée). */
+  const soc_raw=Store.get("soc_raw_52");
+  if(isNum(soc_raw)){
+    Store.set("soc_brut",soc_raw); // toujours affiché dans Tout
+    const spd=Store.get("speed_kmh"), totalA=Store.get("motor_cur_total");
+    const atRest=(!isNum(spd)||spd<1.0)&&(!isNum(totalA)||totalA<1.0);
+    if(atRest){
+      postDecode._restStart=postDecode._restStart||now();
+      if(now()-postDecode._restStart>=5000){
+        Store.set("soc",soc_raw); // mise à jour confirmée au repos ≥ 5 s
+      }
+    } else {
+      postDecode._restStart=null; // reset dès qu'on roule
+    }
+  }
+
+  /* FIX-4 : épisodes de frein régénératif (hypothèse : bit 0x0400 ecu_f ou ecu_r)
+     On compte les transitions 0→1 pour les épisodes. Session.regenEpisodes géré ici. */
+  const rf=Store.get("regen_flag");
+  if(isNum(rf)){
+    const wasOn=postDecode._prevRegenFlag;
+    if(rf===1&&wasOn===0){
+      Session.regenEpisodes=(Session.regenEpisodes||0)+1;
+    }
+    Session.regenFlagNow=rf===1;
+    postDecode._prevRegenFlag=rf;
+  }
 }
+postDecode._restStart=null;
+postDecode._prevRegenFlag=0;
 
 /* ================================================================
    FORMATAGE des valeurs (gère unités + conversions mph)
@@ -1694,20 +1825,26 @@ const UI={
     if(spdEl.textContent!==sTxt)spdEl.textContent=sTxt;
     $("#lvUnit").textContent=u==="mph"?"mph":"km/h";
     $("#gaugeMax").textContent=disp.max;
-    const amp=freshV("amp_pack"),regen=isNum(amp)&&amp<-0.5;
-    $("#gaugeSvg").classList.toggle("regen",regen);
-    $("#lvRegen").classList.toggle("show",regen);
+    // FIX-4 : indicateur freinage régén via flag ECU bit 0x0400 (hypothèse)
+    const regenFlag=freshV("regen_flag");
+    const regenOn=regenFlag===1;
+    $("#gaugeSvg").classList.toggle("regen",regenOn);
+    $("#lvRegen").innerHTML=regenOn?"FREIN (hypothèse)":"RÉGÉN";
+    $("#lvRegen").classList.toggle("show",regenOn);
     setTile("lvSoc","soc");
-    // Tension : préférer volt_pack (BMS), sinon volt_est (estimation SOC)
+    // Tension : volt_pack (BMS) ou tension nominale en label
     const vPack=freshV("volt_pack");
-    const vEst=freshV("volt_est");
-    const vShow=isNum(vPack)?vPack:vEst;
+    const nomV=freshV("nom_volt");
     const vEl=$("#lvVolt");
-    if(isNum(vShow)){vEl.innerHTML=vShow.toFixed(1)+'<small>V'+(isNum(vPack)?'':'~')+'</small>';vEl.parentElement.classList.remove("stale")}
-    else{vEl.innerHTML="—";vEl.parentElement.classList.toggle("stale",true)}
+    if(isNum(vPack)){vEl.innerHTML=vPack.toFixed(1)+'<small>V</small>';vEl.parentElement.classList.remove("stale")}
+    else if(Store.connActive){vEl.innerHTML=(isNum(nomV)?nomV:52)+'<small>V nom.</small>';vEl.parentElement.classList.remove("stale")}
+    else{vEl.innerHTML="—";vEl.parentElement.classList.add("stale")}
     setTile("lvPow","power_w");
-    const a=setTile("lvAmp","amp_pack");
-    if(a)$("#lvAmp").className="t-val num "+(!a.num?"":a.num<-0.3?"ok":a.num>0.5?"bad":"");
+    // Courant : moteur total (jamais amp_pack sur Mini Q)
+    const totalA=freshV("motor_cur_total");
+    const ampEl=$("#lvAmp");
+    if(isNum(totalA)){ampEl.innerHTML=totalA.toFixed(1)+'<small>A≈</small>';ampEl.className="t-val num "+(totalA>0.5?"bad":"");ampEl.parentElement.classList.remove("stale")}
+    else{ampEl.textContent="—";ampEl.className="t-val num";}
     setTile("lvGear","gear");
     // Temp batterie : sur Mini Q batt_tmax est null, afficher "n/d"
     const tbMax=freshV("batt_tmax");
@@ -1868,9 +2005,10 @@ const UI={
 
   /* ================= PAGE TRAJET ================= */
   build_trajet(){
-    $("#tripTiles").innerHTML=[["spd_avg","Vitesse moyenne"],["spd_max","Vitesse max"],["trip_km","Trip"],["odo_km","Odomètre"]]
+    $("#tripTiles").innerHTML=[["spd_avg","Vitesse inst."],["spd_max","Vitesse max"],["trip_km","Trip (trottinette)"],["odo_km","Odomètre"]]
       .map(([k,l])=>`<div class="tile"><span class="t-lab">${l}</span><span class="t-val num" id="tj-${k}">—</span></div>`).join("");
-    $("#sessTiles").innerHTML=["Durée;ts-dur","Distance;ts-dist","Énergie utilisée;ts-used","Régénérée;ts-regen"]
+    // FIX-5 : distance = delta trip_km ; Wh régénérés SUPPRIMÉ
+    $("#sessTiles").innerHTML=["Durée;ts-dur","Distance (trip Δ);ts-dist","Énergie est.;ts-used","Freins régén (hep.);ts-regen"]
       .map(s=>s.split(";")).map(([l,id])=>`<div class="tile"><span class="t-lab">${l}</span><span class="t-val num" id="${id}">—</span></div>`).join("");
   },
   r_trajet(t){
@@ -1878,9 +2016,14 @@ const UI={
     const u=Settings.get("unit");
     setTile("tj-spd_avg","spd_avg");setTile("tj-spd_max","spd_max");setTile("tj-trip_km","trip_km");setTile("tj-odo_km","odo_km");
     $("#ts-dur").textContent=fmtDur(Date.now()-Session.start);
-    $("#ts-dist").textContent=fmtDist(Session.distKm,u)+(u==="mph"?" mi":" km");
-    $("#ts-used").textContent=Session.usedWh.toFixed(1)+" Wh";
-    $("#ts-regen").textContent=Session.regenWh.toFixed(1)+" Wh";
+    // FIX-5 : distance réelle via delta trip_km
+    const d=Session.distReal();
+    const tripSrc=isNum(Store.get("trip_km"))&&isNum(Session.tripKmStart)?"(trip Δ)":"(intégr.)";
+    $("#ts-dist").textContent=fmtDist(d,u)+(u==="mph"?" mi":" km")+" "+tripSrc;
+    $("#ts-used").textContent=Session.usedWh.toFixed(1)+" Wh (est.)";
+    // FIX-4 : épisodes freinage régén (hypothèse)
+    const pct=Session.regenFrac();
+    $("#ts-regen").textContent=Session.regenEpisodes+" ép. · "+(isNum(pct)?(pct*100).toFixed(1)+"%":"—")+" (hypothèse)";
   },
 
   /* ================= PAGE ENREGISTREMENT ================= */
