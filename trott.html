@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101419">
+<title>Trott – Fighter Mini Q</title>
+<style>
+:root{--bg:#101419;--pn:#181e25;--ln:#2a323b;--tx:#dfe6ee;--mu:#8b97a5;--ac:#5cc8ff;--ok:#6fdc8c;--wa:#ffb347;--ko:#ff6b5e;box-sizing:border-box}
+*{box-sizing:inherit}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+body{padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 24px)}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+h1{font-size:19px;margin:0;font-weight:650}
+h2{font-size:14px;margin:0 0 8px;font-weight:600;color:var(--mu)}
+#st{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mu)}
+#dot{width:10px;height:10px;border-radius:50%;background:var(--ko)}
+#dot.on{background:var(--ok)}#dot.wait{background:var(--wa)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+button{font:inherit;color:var(--tx);background:var(--pn);border:1px solid var(--ln);border-radius:10px;padding:10px 14px;min-height:44px}
+button.main{background:var(--ac);color:#06202e;border-color:var(--ac);font-weight:650;flex:1}
+button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+section{background:var(--pn);border:1px solid var(--ln);border-radius:12px;padding:12px;margin-bottom:12px}
+.kv{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.kv div{display:flex;flex-direction:column}
+.kv b{font-size:22px;font-variant-numeric:tabular-nums;font-weight:600}
+.kv span{font-size:12px;color:var(--mu)}
+.fr{margin-bottom:12px}
+.fr:last-child{margin-bottom:0}
+.fh{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.fh i{font-style:normal;color:var(--mu)}
+.bytes{display:grid;grid-template-columns:repeat(10,1fr);gap:3px}
+.bytes u{text-decoration:none;text-align:center;font:12px ui-monospace,Menlo,monospace;background:var(--bg);border:1px solid var(--ln);border-radius:5px;padding:4px 0;font-variant-numeric:tabular-nums}
+.bytes u.ch{background:#0f3a4d;border-color:var(--ac);color:#fff}
+.bytes u.hd{color:var(--mu)}
+#log{width:100%;height:190px;background:var(--bg);color:var(--tx);border:1px solid var(--ln);border-radius:8px;font:12px ui-monospace,Menlo,monospace;padding:8px;resize:vertical}
+.hint{font-size:13px;color:var(--wa);margin:0 0 12px}
+.note{font-size:12px;color:var(--mu);margin:8px 0 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>Fighter Mini Q</h1>
+  <div id="st"><i id="dot"></i><span id="stt">déconnecté</span></div>
+</header>
+
+<div class="row">
+  <button class="main" id="go">Connecter</button>
+  <button id="rc" hidden>Reconnecter</button>
+  <button id="fmt">Hex / Déc</button>
+</div>
+<p class="hint" id="hint" hidden></p>
+
+<section>
+  <h2>Valeurs décodées</h2>
+  <div class="kv">
+    <div><b id="vOdo">–</b><span>Odomètre (55 73)</span></div>
+    <div><b id="vPack">–</b><span>Tension pack réglage (V)</span></div>
+    <div><b id="vPow">–</b><span>Limite puissance (%)</span></div>
+    <div><b id="vOt">–</b><span>Seuil surchauffe (°C)</span></div>
+    <div><b id="vIf">–</b><span>Courant avant (vitesse active)</span></div>
+    <div><b id="vIr">–</b><span>Courant arrière (vitesse active)</span></div>
+    <div><b id="vGl">–</b><span>Limite de la vitesse active</span></div>
+    <div><b id="vFin" style="font-size:15px">–</b><span>N° de cadre (55 42)</span></div>
+  </div>
+  <p class="note">Vitesse, température, courant et SOC arrivent dans 55 52 / 55 72 : formules pas encore vérifiées, octets bruts ci-dessous.</p>
+</section>
+
+<section>
+  <h2>Trames brutes (20 octets)</h2>
+  <div id="frames"><span class="note">Aucune trame reçue.</span></div>
+</section>
+
+<section>
+  <h2>Journal / diagnostic</h2>
+  <textarea id="log" readonly></textarea>
+  <div class="row" style="margin:8px 0 0">
+    <button id="cp">Copier journal + trames</button>
+    <button id="clr">Vider</button>
+  </div>
+</section>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const h2 = b => b.toString(16).padStart(2, "0");
+let hexMode = false, dev = null, wChar = null, nChars = [], ka = null, wl = null;
+let buf = new Uint8Array(0), frames = {}, rec = [], total = 0, t0 = 0;
+let crcMode = "c07", crcLocked = false;
+const hits = {};
+
+/* CRC candidats : le polynôme exact de la VCU n'est pas confirmé, on l'auto-détecte */
+const crcDef = {
+  c07:   d => { let c = 0; for (const b of d) { c ^= b; for (let i = 0; i < 8; i++) c = c & 128 ? ((c << 1) ^ 7) & 255 : (c << 1) & 255; } return c; },
+  c07ff: d => { let c = 255; for (const b of d) { c ^= b; for (let i = 0; i < 8; i++) c = c & 128 ? ((c << 1) ^ 7) & 255 : (c << 1) & 255; } return c; },
+  maxim: d => { let c = 0; for (const b of d) { c ^= b; for (let i = 0; i < 8; i++) c = c & 1 ? (c >> 1) ^ 0x8c : c >> 1; } return c; },
+  sum:   d => d.reduce((a, b) => a + b, 0) & 255,
+  xor:   d => d.reduce((a, b) => a ^ b, 0)
+};
+const modes = Object.keys(crcDef);
+modes.forEach(m => hits[m] = 0);
+
+function log(m) {
+  const el = $("#log");
+  el.value += ((performance.now() - t0) / 1000).toFixed(1).padStart(7) + "s  " + m + "\n";
+  el.scrollTop = el.scrollHeight;
+}
+function status(txt, cls) { $("#stt").textContent = txt; $("#dot").className = cls || ""; }
+function hint(t) { const e = $("#hint"); e.hidden = !t; e.textContent = t || ""; }
+
+/* ---- connexion ---- */
+const ffServices = []; for (let u = 0xff00; u <= 0xffff; u++) ffServices.push(u);
+const optServices = [...ffServices, "49535343-fe7d-4ae5-8fa9-9fafd205e455", "6e400001-b5a3-f393-e0a9-e50e24dcca9e"];
+
+async function pick() {
+  if (!navigator.bluetooth) { hint("Web Bluetooth absent : ouvre cette page dans Bluefy (pas Safari)."); return; }
+  try {
+    dev = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: optServices });
+  } catch (e) { log("Choix annulé : " + e.message); return; }
+  dev.addEventListener("gattserverdisconnected", onDisc);
+  await link();
+}
+
+async function link() {
+  t0 = performance.now(); buf = new Uint8Array(0); total = 0; nChars = []; wChar = null;
+  status("connexion…", "wait"); hint("");
+  try {
+    log("Appareil : " + (dev.name || "(sans nom)"));
+    const srv = await dev.gatt.connect();
+    log("GATT connecté");
+    const svcs = await srv.getPrimaryServices();
+    log(svcs.length + " service(s) trouvé(s)");
+    let target = null; const all = [];
+    for (const s of svcs) {
+      const cs = await s.getCharacteristics();
+      const info = cs.map(c => ({ c, p: c.properties }));
+      all.push({ s, info });
+      log("Service " + s.uuid);
+      info.forEach(i => log("  car. " + i.c.uuid + " [" + Object.keys(i.p).filter(k => i.p[k]).join(",") + "]"));
+      const u = s.uuid.toUpperCase();
+      if (!target && (u.startsWith("0000FF") || u.startsWith("495353"))) target = { s, info, u };
+    }
+    if (!target) {
+      target = all.find(a => a.info.some(i => i.p.notify || i.p.indicate) && a.info.some(i => i.p.write || i.p.writeWithoutResponse));
+      if (target) log("Service générique retenu : " + target.s.uuid);
+    }
+    if (!target) throw new Error("Aucun service UART trouvé (voir liste ci-dessus)");
+    let notif, write;
+    if ((target.u || "").startsWith("495353")) {
+      notif = target.info.filter(i => i.c.uuid.startsWith("49535343-1e4d"));
+      write = target.info.find(i => i.c.uuid.startsWith("49535343-8841"));
+    }
+    if (!notif || !notif.length) notif = target.info.filter(i => i.p.notify || i.p.indicate);
+    if (!write) write = target.info.find(i => (i.p.write || i.p.writeWithoutResponse) && !notif.includes(i)) || target.info.find(i => i.p.write || i.p.writeWithoutResponse);
+    if (!notif.length || !write) throw new Error("Caractéristiques notify/write introuvables");
+    wChar = write.c;
+    log("Écriture : " + wChar.uuid);
+    for (const n of notif) {
+      n.c.addEventListener("characteristicvaluechanged", onData);
+      await n.c.startNotifications();
+      nChars.push(n.c);
+      log("Notifications : " + n.c.uuid);
+    }
+    status("connecté, attente trames", "wait");
+    $("#go").hidden = true; $("#rc").hidden = true;
+    setTimeout(greet, 300);
+    ka = setInterval(greet, 6500);
+    try { wl = await navigator.wakeLock.request("screen"); } catch (_) {}
+  } catch (e) {
+    log("ERREUR : " + e.message);
+    status("échec", "");
+    hint("Échec : " + e.message + ". Copie le journal et envoie-le.");
+    $("#rc").hidden = false;
+  }
+}
+
+function onDisc() {
+  clearInterval(ka); ka = null;
+  log("Déconnecté");
+  status("déconnecté", ""); $("#rc").hidden = false; $("#go").hidden = false;
+  $("#go").textContent = "Choisir un appareil";
+}
+
+/* ---- accueil / keep-alive : AA 01 10 00 FF FF FF FF … CRC ---- */
+async function greet() {
+  if (!wChar || !dev || !dev.gatt.connected) return;
+  /* tant qu'aucune trame n'est valide, on essaie un CRC différent à chaque envoi */
+  if (!total) {
+    crcMode = modes[(modes.indexOf(crcMode) + (greet.n++ ? 1 : 0)) % modes.length];
+  }
+  const f = new Uint8Array(20).fill(255);
+  f[0] = 0xaa; f[1] = 1; f[2] = 0x10; f[3] = 0;
+  f[19] = crcDef[crcMode](f.subarray(0, 19));
+  try {
+    if (wChar.properties.writeWithoutResponse && wChar.writeValueWithoutResponse) await wChar.writeValueWithoutResponse(f);
+    else await wChar.writeValue(f);
+    log("→ accueil (CRC " + crcMode + ") " + [...f].map(h2).join(" "));
+  } catch (e) { log("Écriture KO : " + e.message); }
+  if (!total && greet.n > 2) hint("Aucune trame reçue. Je teste d'autres CRC. Scooter allumé, app Teverun fermée ?");
+}
+greet.n = 0;
+
+/* ---- réception ---- */
+function onData(ev) {
+  const v = new Uint8Array(ev.target.value.buffer.slice(ev.target.value.byteOffset, ev.target.value.byteOffset + ev.target.value.byteLength));
+  const nb = new Uint8Array(buf.length + v.length); nb.set(buf); nb.set(v, buf.length); buf = nb;
+  while (buf.length >= 20) {
+    if (buf[0] !== 0x55) { buf = buf.subarray(1); continue; }
+    frame(buf.slice(0, 20)); buf = buf.subarray(20);
+  }
+}
+
+function frame(f) {
+  const body = f.subarray(0, 19);
+  let ok = false;
+  for (const m of modes) if (crcDef[m](body) === f[19]) { hits[m]++; if (m === crcMode) ok = true; }
+  total++;
+  if (total === 1) { status("connecté", "on"); hint(""); log("Première trame reçue"); }
+  if (!crcLocked && total >= 12) {
+    const best = modes.reduce((a, b) => hits[b] > hits[a] ? b : a, modes[0]);
+    if (hits[best] / total > 0.8) { crcMode = best; crcLocked = true; log("CRC détecté : " + best + " (" + hits[best] + "/" + total + ")"); }
+    else if (total === 12) log("CRC non identifié, trames acceptées sans contrôle : " + JSON.stringify(hits));
+  }
+  const key = h2(f[0]) + " " + h2(f[1]);
+  const now = performance.now();
+  const o = frames[key] || (frames[key] = { n: 0, ch: new Array(20).fill(0), first: now });
+  const prev = o.f;
+  if (prev) for (let i = 0; i < 20; i++) if (prev[i] !== f[i]) o.ch[i] = now;
+  o.f = f; o.n++; o.ok = ok; o.last = now;
+  rec.push(((now - t0) / 1000).toFixed(2) + " " + [...f].map(h2).join(" ") + (ok ? "" : " !crc"));
+  if (rec.length > 800) rec.shift();
+  decode(key, f);
+  schedule();
+}
+
+/* ---- décodage : uniquement ce qui est documenté ---- */
+const val = {};
+function decode(key, f) {
+  if (key === "55 73") val.odo = (f[8] << 16 | f[9] << 8 | f[10]);
+  if (key === "55 42") val.fin = String.fromCharCode(...f.subarray(2, 19).filter(b => b > 31 && b < 127));
+  if (key === "55 71") {
+    val.ot = f[7]; val.gl = f[10]; val.pow = f[11]; val.iF = f[12]; val.iR = f[13]; val.pack = f[15];
+  }
+}
+
+/* ---- rendu ---- */
+let pend = false;
+function schedule() { if (!pend) { pend = true; setTimeout(render, 250); } }
+function render() {
+  pend = false;
+  const s = (id, v, suf) => $(id).textContent = v === undefined ? "–" : v + (suf || "");
+  s("#vOdo", val.odo, " km"); s("#vPack", val.pack); s("#vPow", val.pow); s("#vOt", val.ot);
+  s("#vIf", val.iF); s("#vIr", val.iR); s("#vGl", val.gl); s("#vFin", val.fin);
+  const now = performance.now(), keys = Object.keys(frames).sort();
+  $("#frames").innerHTML = keys.map(k => {
+    const o = frames[k], rate = (o.n / ((now - o.first) / 1000 + 0.001)).toFixed(1);
+    const cells = [...o.f].map((b, i) => '<u class="' + (i < 2 ? "hd " : "") + (now - o.ch[i] < 700 ? "ch" : "") + '">' + (hexMode ? h2(b) : b) + "</u>").join("");
+    return '<div class="fr"><div class="fh"><span>' + k + "</span><i>" + o.n + " trames · " + rate + "/s" + (o.ok ? "" : " · CRC ?") + '</i></div><div class="bytes">' + cells + "</div></div>";
+  }).join("");
+  if (keys.some(k => now - frames[k].last < 2000)) schedule();
+}
+
+/* ---- boutons ---- */
+$("#go").onclick = () => pick();
+$("#rc").onclick = async () => { if (dev) await link(); else await pick(); };
+$("#fmt").onclick = () => { hexMode = !hexMode; render(); };
+$("#clr").onclick = () => { $("#log").value = ""; rec = []; };
+$("#cp").onclick = async () => {
+  const txt = "== journal ==\n" + $("#log").value + "\n== CRC hits (" + total + " trames) ==\n" + JSON.stringify(hits) + "\n== trames (t_s, octets) ==\n" + rec.join("\n");
+  try { await navigator.clipboard.writeText(txt); log("Copié (" + rec.length + " trames)"); }
+  catch (_) { const el = $("#log"); el.value = txt; el.focus(); el.select(); log("Sélection faite : copie manuelle"); }
+};
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState === "visible" && dev && dev.gatt.connected) { try { wl = await navigator.wakeLock.request("screen"); } catch (_) {} }
+});
+t0 = performance.now();
+if (!navigator.bluetooth) hint("Web Bluetooth absent : ouvre cette page dans Bluefy (pas Safari).");
+</script>
+</body>
+</html>
